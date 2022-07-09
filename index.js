@@ -18,7 +18,11 @@ var stub_args = 'global'
 function boot() {
 	// Create new window
 	window = new BrowserWindow({
-		icon: path.join(__dirname, './Icons/logo.ico')
+		icon: path.join(__dirname, './Icons/logo.ico'),
+		webPreferences: {
+			nodeIntegration: true,
+			contextIsolation: false
+		}
 	});
 	window.maximize()
 	window.loadURL(url.format({

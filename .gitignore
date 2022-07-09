@@ -7,3 +7,4 @@ package-lock.json
 
 #Ignore file name 'package.json'
 package.json
+.vscode/tasks.json
