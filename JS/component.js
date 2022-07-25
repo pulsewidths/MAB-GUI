@@ -253,17 +253,6 @@ class Component
 
 }
 
-function addNewComponent( posX, posY )
-{
-
-    // create a component object and add it to the global list
-    var component = new Component( "Component_" + componentList.length, posX, posY );
-    componentList.push( component );
-
-    return component;
-
-}
-
 // Catch new component name from ipcMain
 ipcRend.on("component->renderer", function(event, args) {
 

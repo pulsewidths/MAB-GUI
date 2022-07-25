@@ -123,7 +123,8 @@ function drop(ev) {
     var posX = ev.pageX - 150;
     var posY = ev.pageY - 175;
     if(data == "component"){
-        addNewComponent(posX, posY);
+        let component = new Component( "Component_" + componentList.length, posX, posY );
+        componentList.push( component );
     }
 };
 
