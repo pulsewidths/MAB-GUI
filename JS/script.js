@@ -5,35 +5,18 @@ const ipcMain = require('electron').remote.ipcMain;
 const remote = require('electron').remote;
 const ipcRend = require('electron').ipcRenderer;
 
-var layer = "global";
-var stage = "global";
-var component_list = [];
-var connection_list = [];
+var globalLayer = "global";
+var globalStage = "global";
+var componentList = [];
+var connectionList = [];
 var blockSnapSize = 10;
-var source_transition = null;
-var dest_transition = null;
-var source_obj = null;
-var dest_obj = null;
+var sourceTransition = null;
+var destTransition = null;
+var sourceObj = null;
+var destObj = null;
 var highlighted = false;
 const MAX_DEPENDENCY_COUNT = 3;
 const max_transition_count = 3; // const global max transition count coming out of any one place
-
-class Component {
-    constructor(type, name){
-        this.type = type;
-        this.name = name;
-        this.index;
-        this.place_list = [];
-        this.component_group_konva;
-        this.transition_list = [];
-        this.transition_dictionary = {};
-        this.dependency_list = [];
-        this.konva_component;
-        this.tooltipLayer;
-        this.use_selection_area;
-        this.provide_selection_area;
-    };
-};
 
 class Place {
     constructor(type, name) {
@@ -112,17 +95,19 @@ function snapToGrid(pos){
 };
 
 function initialize() {
-    var WIDTH = 3840;
-    var HEIGHT = 2160;
 
-    stage = new Konva.Stage({
+    var w = 3840;
+    var h = 2160;
+
+    globalStage = new Konva.Stage({
         container: 'container',
-        width: WIDTH,
-        height: HEIGHT
+        width: w,
+        height: h
     });
 
-    layer = new Konva.Layer();
-    stage.add(layer);
+    globalLayer = new Konva.Layer();
+    
+    globalStage.add( globalLayer );
 };
 
 // Drag N Drop Functions
