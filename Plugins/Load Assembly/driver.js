@@ -6,7 +6,7 @@ const la_ipcRenderer = la_electron.ipcRenderer;
 var la_fs = require('fs'); // Load the File System to execute our common tasks (CRUD)
 var la_app = la_electron.remote;
 var la_dialog = la_app.dialog;
-var la_comp_list = component_list;
+var la_comp_list = componentList;
 var la_yaml = require('js-yaml');
 
 la_ipcRenderer.on('load_assembly', function() {

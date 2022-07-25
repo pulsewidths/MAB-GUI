@@ -4,8 +4,8 @@ const ipcRenderer = electron.ipcRenderer;
 var fs = require('fs'); // Load the File System to execute our common tasks (CRUD)
 var app = electron.remote; 
 var dialog = app.dialog;
-var comp_list = component_list;
-var con_list = connection_list;
+var comp_list = componentList;
+var con_list = connectionList;
 
 ipcRenderer.on('generate_code', function() {
     /** Loop through the component list, for every component create a new file
