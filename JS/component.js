@@ -256,6 +256,6 @@ class Component
 // Catch new component name from ipcMain
 ipcRend.on("component->renderer", function(event, args) {
 
-    changeComponentName(args.component_name, args.name);
+    changeComponentName(args.component_name, args.name); // @todo: what's... this?
 
 });
