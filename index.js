@@ -45,6 +45,8 @@ function boot( )
 
 	populatePlugins( );
 
+	initListeners( );
+
 	// maximize window.
 	window.maximize( )
 
@@ -56,57 +58,7 @@ function boot( )
 		}
 	);
 
-	createSignalReceivers( ); // @todo: is this positioned correctly?
-
 };
-
-const mainMenu = Menu.buildFromTemplate(
-	[
-		{
-			label: 'File',
-			submenu: [
-			{
-				// quit + hotkey.
-				label: 'Quit',
-				accelerator:
-					process.platform == 'darwin' ? 'Command+Q' : 'Ctrl+Q',
-					click( ) { app.quit( ); }
-			}
-			]
-		},
-		{
-			label: 'Plugins',
-			submenu: [ ]
-		}
-	]
-);
-
-const simulatorMenu = Menu.buildFromTemplate(
-	[
-		{
-			label: 'File',
-			submenu: [
-			{
-				// quit + hotkey.
-				label: 'Quit',
-				accelerator: // @todo: why is this formatted differently than below?
-					process.platform == 'darwin' ? 'Command+Q' : 'Ctrl+Q',
-					click( ) { app.quit( ); }
-			}
-			]
-		},
-		{
-			label: 'Exit Simulator Mode',
-				click( )
-				{
-					// send 'exit' signal to renderer.
-					window.webContents.send( 'exitSimulator' ); // @todo: change exit_simulator to exitSimulator elsewhere.
-					// reset menu.
-					Menu.setApplicationMenu( mainMenu );
-				}
-		}
-	]
-);
 
 // add all valid plugins to the 'plugins' menu dropdown.
 function populatePlugins( )
@@ -154,45 +106,8 @@ function populatePlugins( )
 
 }
 
-// if mac, add empty object to menu. @todo: reposition this?
-if( process.platform == 'darwin' )
-{
-	mainMenu.items.unshift(
-		{
-	  		label: app.getName( ),
-	  		submenu: [ { role: 'quit' } ]
-		}
-	);
- }
-
-// add developer tools. @todo: reposition this?
-if( process.env.NODE_ENV == 'development' )
-{
-
-	mainMenu.append( new electron.MenuItem( 
-		{
-			label: 'Developer Tools',
-			submenu: [
-				{
-					label: 'Toggle DevTools',
-					// dev tools + hotkey.
-					accelerator:
-						process.platform == 'darwin' ? 'Command+I' : 'Ctrl+I',
-						click( item, focusedWindow )
-						{
-							focusedWindow.toggleDevTools( );
-						}
-				},
-				{
-					role: 'reload'
-				}
-			]
-		}
-	) );
-
-}
-
-function createSignalReceivers( )
+// @todo: should this be refactored into the appropriate, individual .js files?
+function initListeners( )
 {
 	ipcMain.on( 'enterSimulator',
 		function( args )
@@ -340,5 +255,92 @@ function createSignalReceivers( )
 			} ) );
 		}
 	);
+
+}
+
+const mainMenu = Menu.buildFromTemplate(
+	[
+		{
+			label: 'File',
+			submenu: [
+			{
+				// quit + hotkey.
+				label: 'Quit',
+				accelerator:
+					process.platform == 'darwin' ? 'Command+Q' : 'Ctrl+Q',
+					click( ) { app.quit( ); }
+			}
+			]
+		},
+		{
+			label: 'Plugins',
+			submenu: [ ]
+		}
+	]
+);
+
+const simulatorMenu = Menu.buildFromTemplate(
+	[
+		{
+			label: 'File',
+			submenu: [
+			{
+				// quit + hotkey.
+				label: 'Quit',
+				accelerator: // @todo: why is this formatted differently than below?
+					process.platform == 'darwin' ? 'Command+Q' : 'Ctrl+Q',
+					click( ) { app.quit( ); }
+			}
+			]
+		},
+		{
+			label: 'Exit Simulator Mode',
+				click( )
+				{
+					// send 'exit' signal to renderer.
+					window.webContents.send( 'exitSimulator' ); // @todo: change exit_simulator to exitSimulator elsewhere.
+					// reset menu.
+					Menu.setApplicationMenu( mainMenu );
+				}
+		}
+	]
+);
+
+
+// if mac, add empty object to menu. @todo: reposition this?
+if( process.platform == 'darwin' )
+{
+	mainMenu.items.unshift(
+		{
+	  		label: app.getName( ),
+	  		submenu: [ { role: 'quit' } ]
+		}
+	);
+ }
+
+// add developer tools. @todo: reposition this?
+if( process.env.NODE_ENV == 'development' )
+{
+
+	mainMenu.append( new electron.MenuItem( 
+		{
+			label: 'Developer Tools',
+			submenu: [
+				{
+					label: 'Toggle DevTools',
+					// dev tools + hotkey.
+					accelerator:
+						process.platform == 'darwin' ? 'Command+I' : 'Ctrl+I',
+						click( item, focusedWindow )
+						{
+							focusedWindow.toggleDevTools( );
+						}
+				},
+				{
+					role: 'reload'
+				}
+			]
+		}
+	) );
 
 }
