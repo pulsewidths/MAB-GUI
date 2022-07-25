@@ -5,16 +5,22 @@ const ipcMain = require('electron').remote.ipcMain;
 const remote = require('electron').remote;
 const ipcRend = require('electron').ipcRenderer;
 
-var globalLayer = "global";
-var globalStage = "global";
+var globalLayer = null;
+var globalStage = null;
+
 var componentList = [];
 var connectionList = [];
+
 var blockSnapSize = 10;
+
+var selectedPlace = null;
+
 var sourceTransition = null;
 var destTransition = null;
-var sourceObj = null;
+
+var sourceObj = null; // @todo: ?? what is this?
 var destObj = null;
-var highlighted = false;
+
 const MAX_DEPENDENCY_COUNT = 3;
 const max_transition_count = 3; // const global max transition count coming out of any one place
 

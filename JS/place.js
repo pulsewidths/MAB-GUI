@@ -1,91 +1,112 @@
-// Add new place function, should only be called by component
-function addNewPlace(component_obj, placePos) {
+const { _numWithUnitExp } = require("gsap/gsap-core");
+const { default: Konva } = require("konva");
 
-    var place = new Konva.Circle({
-        x: placePos.x,
-        y: placePos.y,
-        radius: 30,
-        stroke: 'black',
-        strokeWidth: 1,
-        fill: 'white',
-        name: 'place',
-        ShadowBlur: 1,
-        draggable: true,
-        dragBoundFunc: function(pos) {
-            var X = pos.x;
-            var Y = pos.y;
-            // get min and max based on its parent component
-            var minX = component_obj.konva_component.getAbsolutePosition().x;
-            var maxX = minX + (component_obj.konva_component.getWidth() * component_obj.konva_component.scaleX());
-            var minY = component_obj.konva_component.getAbsolutePosition().y;
-            var maxY = minY + (component_obj.konva_component.getHeight() * component_obj.konva_component.scaleY());
-            if(X < minX) { X = minX; }
-            if(X > maxX) { X = maxX; }
-            if(Y < minY) { Y = minY; }
-            if(Y > maxY) { Y = maxY; }
-            return ( { x: X, y: Y } );
-        }
-    });
+class Place
+{
 
-    // tooltip to display name of object
-    var tooltip = new Konva.Text({
-        text: "",
-        fontFamily: "Calibri",
-        fontSize: 12,
-        padding: 5,
-        textFill: "white",
-        fill: "black",
-        alpha: 0.75,
-        visible: false
-    });
+    constructor( name, parentComponent, position )
+    {
 
-    component_obj.tooltipLayer.add(tooltip);
-    stage.add(component_obj.tooltipLayer);
+        this.type = 'place';
+        this.name = name;
+        this.index = parentComponent.placeList.length;
 
-    // create place object
-    var place_obj = new Place('Place', "Place_" + generateNextIndex(component_obj.place_list));
-    place_obj.index = generateNextIndex(component_obj.place_list);
-    place_obj.place_konva = place;
-    place_obj.component_obj = component_obj;
+        this.parentComponent = parentComponent;
+        this.parentComponent.placeList.push( this );
 
-    component_obj.component_group_konva.add(place);
-    component_obj.place_list.push(place_obj);
+        this.initKonva( parentComponent, position );
+        this.initTooltip( parentComponent );
+        this.initListeners( );
 
-    // initial values to null 
-    selected_source = null;
-    selected_source_comp = null;
-    selected_dest = null;
-    selected_dest_comp = null;
+    }
 
-    // event: place left-click
-    place.on("click", function(e) {
+    initKonva( parentComponent, position )
+    {
 
-        if(e.evt.button === 0) {
-
-            // if we've already selected a source, unselect it first
-            if(selected_source != null) {
-                selected_source.place_konva.stroke('black');
-                selected_source.place_konva.strokeWidth(1);
-                layer.batchDraw();
-                // if we're clicking the selected place, deselect it
-                if(selected_source == place_obj) {
-                    selected_source = null;
-                    return;
-                }
+        this.shape = new Konva.Circle( 
+            {
+                x: position.x, y: position.y,
+                radius: 30,
+                stroke: 'black', strokeWidth: 1, fill: 'white',
+                name: 'place',
+                shadowBlue: 1,
+                draggable: true,
+                dragBoundFunc:
+                function( position )
+                    {
+                        let x = position.x;
+                        let y = position.y;
+                        let minX = parentComponent.shape.getAbsolutePosition( ).x;
+                        let maxX = minX + (parentComponent.shape.getWidth( ) * parentComponent.shape.scaleX( ) );
+                        let minY = parentComponent.shape.getAbsolutePosition( ).y;
+                        let maxY = minY + (parentComponent.shape.getHeight( ) * parentComponent.shape.scaleY( ) );
+                        if( x < minX ) { x = minX; }
+                        if( maxX < x ) { x = maxX; }
+                        if( y < minY ) { y = minY; }
+                        if( maxY < y ) { y = maxY; }
+                        return ( { x: x, y: y } );
+                    }
             }
+        );
 
-            selected_source_comp = component_obj;
+        this.parentComponent.group.add( this.shape );
 
-            selected_source = place_obj;
+    }
 
-            // highlight selection
-            highlighted = true;
-            place.stroke('blue');
-            place.strokeWidth(5);
-            place.draw();
-        }
+    initTooltip( parentComponent )
+    {
 
-    });
+        this.tooltip = new Konva.Text( {
+            text: '',
+            fontFamily: 'Calibri', fontSize: 12,
+            padding: 5,
+            textFill: 'white', fill: 'black',
+            alpha: 0.75, visible: false
+
+        } );
+
+        parentComponent.tooltipLayer.add( tooltip );
+        globalStage.add( parentComponent.tooltipLayer );
+    }
+
+    initListeners( )
+    {
+
+        // single left-click.
+        this.shape.on( 'click',
+            function( event )
+            {
+                if( event.evt.button === 0 )
+                {
+
+                    // if a source is selected, deselect it.
+                    if( srcPlace != null )
+                    {
+                        selectedPlace.shape.stroke( 'black' );
+                        selectedPlace.shape.strokeWidth( 1 );
+                        globalLayer.batchDraw( );
+                        // if we're clicking the currently selected place...
+                        if( selectedPlace == this )
+                        {
+                            selectedPlace = null;
+                            return;
+                        }
+                    }
+                    // if a place isn't selected...
+                    selectedPlace = this;
+                    shape.stroke( 'blue' );
+                    shape.strokeWidth( 5 );
+                    shape.draw( );
+
+                }
+            } );
+    }
+}
+
+// Add new place function, should only be called by component
+function addNewPlace( parentComponent, position ) {
+
+    var place = new Place( 'Place_' + parentComponent.placeList.length + 1, component, position );
 
     // event: place right click, source not selected
     place.on("click", function(e) {
