@@ -1,12 +1,10 @@
 const BrowserWindow = require('electron').remote.BrowserWindow;
+
 const url = require('url');
 const path = require('path');
-const ipcMain = require('electron').remote.ipcMain;
-const remote = require('electron').remote;
-const ipcRend = require('electron').ipcRenderer;
 
-var globalLayer = null;
-var globalStage = null;
+const ipcRend = require('electron').ipcRenderer;
+const remote = require('electron').remote;
 
 var componentList = [];
 var connectionList = [];
@@ -23,25 +21,6 @@ var destObj = null;
 
 const MAX_DEPENDENCY_COUNT = 3;
 const max_transition_count = 3; // const global max transition count coming out of any one place
-
-class Place {
-    constructor(type, name) {
-        this.type = type;
-        this.name = name;
-        this.index;
-        this.component_obj;
-        this.place_konva;
-        this.transition_count = 0; // 3 max
-        this.dependency_count = 0; // 3 max
-        this.offset = 0; // offset is for transitions coming out of this place
-        this.dependency = false;
-        this.dependency_type = '';
-        this.dependency_konva_list = [];
-        this.dependency_obj_list = [];
-        this.transition_outbound_list = [];
-        this.transition_inbound_list = [];
-    };
-};
 
 class Transition {
     constructor(type, name, src, dest, func) {
@@ -100,50 +79,6 @@ function snapToGrid(pos){
     return Math.round(pos / blockSnapSize) * blockSnapSize;
 };
 
-function initialize() {
-
-    var w = 3840;
-    var h = 2160;
-
-    globalStage = new Konva.Stage({
-        container: 'container',
-        width: w,
-        height: h
-    });
-
-    globalLayer = new Konva.Layer();
-    
-    globalStage.add( globalLayer );
-};
-
-// Drag N Drop Functions
-
-function allowDrop(ev) {
-    ev.preventDefault();
-    console.log("allow drop");
-};
-
-function drop(ev) {
-    ev.preventDefault();
-    var data = ev.dataTransfer.getData("text");
-    var posX = ev.pageX - 150;
-    var posY = ev.pageY - 175;
-    if(data == "component"){
-        let component = new Component( "Component_" + componentList.length + 1, posX, posY );
-        componentList.push( component );
-    }
-};
-
-function drag(ev) {
-    ev.dataTransfer.setData("text", ev.target.id);
-};
-
-// Function to close new windows
-function closeNewWindow() {
-    var window = remote.getCurrentWindow();
-    window.close();
-};
-
 // Function to change place name
 function changePlaceName(component, place, new_place_name) {
     // find the component obj
@@ -180,14 +115,6 @@ function changePlaceDependencyType(component, place, dependency_type) {
         }
     }
 };
-
-// Function to change component name
-function changeComponentName(component_name, new_comp_name) {
-     // find the component obj
-    var found_component_obj = component_list.find(function(element) { return element.name == component_name; });
-    if(found_component_obj){ found_component_obj.name = new_comp_name; }
-};
-
 // Function to change transition name
 function changeTransitionName(component, old_name, new_name) {
     // find the component obj

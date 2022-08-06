@@ -1,13 +1,16 @@
 <!DOCTYPE html>
 <html>
+ 
     <head>
+ 
         <meta name="Change Component Details" charset="utf-8">
         <script src="../JS/script.js"></script>
+
     </head>
 
     <body>
         <p>Please enter the component's new name:</p>
-        New Component Name: <input type="text" name="component_name" id="component_name" autofocus><br><br>
+        New Component Name: <input type="text" name="componentName" id="componentName" autofocus><br><br>
         <button id="submit">Change Name</button>
 
         <script>
@@ -15,14 +18,18 @@
             const {ipcRenderer} = electron;
 
             const submit = document.getElementById("submit");
-            submit.addEventListener('click', function(e) {
-                e.preventDefault();
-                const component_name = document.querySelector('#component_name').value.replace(/ /g,"_");
-                ipcRenderer.send('component->main', {name: component_name});
 
-                //Close the window on button press.
-                closeNewWindow();
-            });
+            submit.addEventListener( 'click',
+                function( event )
+                {
+
+                    event.preventDefault();
+                    const newName = document.querySelector('#componentName').value.replace(/ /g,"_");
+                    window.component.name = newName;
+
+                    window.close( );
+        
+                } );
 
             </script>
 

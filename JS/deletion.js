@@ -34,7 +34,7 @@ function deletor(deletion_obj){
     }
 
     // redraw layer
-    layer.draw();
+    mabGUI.layer.draw();
 };
 
 // Handles deletion of Component Obj

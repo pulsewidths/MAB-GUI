@@ -1,5 +1,4 @@
-const { _numWithUnitExp } = require("gsap/gsap-core");
-const { default: Konva } = require("konva");
+// const { _numWithUnitExp } = require("gsap/gsap-core"); @todo: ??
 
 class Place
 {
@@ -13,6 +12,14 @@ class Place
 
         this.parentComponent = parentComponent;
         this.parentComponent.placeList.push( this );
+
+        this.transitionsOut = [ ];
+        this.transitionsIn = [ ];
+        this.dependencies = [ ];
+
+        this.offset = 0;
+        this.dependency = null; // @todo: ??
+
 
         this.initKonva( parentComponent, position );
         this.initTooltip( parentComponent );
@@ -32,7 +39,7 @@ class Place
                 shadowBlue: 1,
                 draggable: true,
                 dragBoundFunc:
-                function( position )
+                    function( position )
                     {
                         let x = position.x;
                         let y = position.y;
@@ -72,6 +79,16 @@ class Place
     initListeners( )
     {
 
+        this.initLeftClickListeners( ); // single & double.
+        this.initRightClickListeners( );
+        this.initMovementListeners( );
+        this.initIPCListeners( );
+
+    }
+
+    initLeftClickListeners( )
+    {
+
         // single left-click.
         this.shape.on( 'click',
             function( event )
@@ -100,30 +117,46 @@ class Place
 
                 }
             } );
+
     }
+
+    initRightClickListeners( )
+    {
+        
+        var place = this;
+        place.on( 'click',
+            function( event )
+            {
+
+                if( event.evt.button === 2 && place.parentComponent.selectedPlace == null )
+                {
+
+                    place.stroke( 'blue' );
+                    place.strokeWidth( 3 );
+                    place.draw( );
+                    ipcRend.send( 'openPlaceDetailsWindow' );
+                    
+                }
+
+            } );
+
+            place.on( 'click',
+                function( event )
+                {
+                    if( event.evt.button === 2 )
+                    {
+                        
+                    }
+                } );
+
+    }
+
 }
 
 // Add new place function, should only be called by component
 function addNewPlace( parentComponent, position ) {
 
     var place = new Place( 'Place_' + parentComponent.placeList.length + 1, component, position );
-
-    // event: place right click, source not selected
-    place.on("click", function(e) {
-
-        if(e.evt.button === 2 && selected_source == null) {
-
-            // highlight the place
-            highlighted = true;
-            place.stroke('blue');
-            place.strokeWidth(3);
-            place.draw();
-
-            ipcRend.send("change_place_details", {component: component_obj.name, place: place_obj.name});
-
-        }
-
-    });
 
     // event: place right click, source selected
     place.on("click", function(e) {

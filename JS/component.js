@@ -1,22 +1,26 @@
 class Component
 {
 
-    constructor( name, posX, posY ) // @todo: is type required...?
+    constructor( name, parentAssembly, pos ) // @todo: is type required...?
     {
 
         this.type = 'component';
         this.name = name;
-        this.index = componentList.length;
+        this.index = parentAssembly.componentList.length;
 
+        this.assembly = parentAssembly;
         this.placeList = [ ];
         this.transitionList = [ ];
         this.transitionDictionary = { };
         this.dependencyList = [ ];
 
-        this.initKonva( posX, posY );
+        this.tooltipLayer = null;
+        this.tooltip = null;
+
+        this.initKonva( pos.x, pos.y );
         this.initTooltip( );
         this.initListeners( );
-        
+
     }
 
     initKonva( posX, posY )
@@ -49,8 +53,8 @@ class Component
         this.group.add( this.useSelectionArea );
         this.group.add( this.provideSelectionArea );
 
-        globalLayer.add( this.group ); // @todo: should this be a parameter?
-        globalLayer.draw( );
+        mabGUI.layer.add( this.group );
+        mabGUI.layer.draw( );
 
     }
 
@@ -62,10 +66,9 @@ class Component
             padding: 5, textFill: 'white', fill: 'black',
             alpha: 0.75, visible: false
         } );
-
         this.tooltipLayer = new Konva.Layer( );
         this.tooltipLayer.add( this.tooltip );
-        globalStage.add( this.tooltipLayer ); // @todo: should this be a parameter...? 
+        mabGUI.stage.add( this.tooltipLayer );
 
     }
 
@@ -83,16 +86,16 @@ class Component
         
         // single-click on stage.
         // @todo: should this be somewhere else...?
-        globalStage.on( 'click',
+        mabGUI.stage.on( 'click',
             function( event )
             {
                 if( event.evt.button === 0 )
                 {
                     // if clicking on empty area...
-                    if( event.target === globalStage )
+                    if( event.target === mabGUI.stage )
                     {
-                        globalStage.find( 'Transformer' ).destroy( ); // deselect
-                        globalLayer.draw( );
+                        mabGUI.stage.find( 'Transformer' ).destroy( ); // deselect
+                        mabGUI.layer.draw( );
                         return;
                     }
 
@@ -101,7 +104,7 @@ class Component
                     {
 
                         // remove any current selection
-                        stage.find( 'Transformer' ).destroy( );
+                        mabGUI.stage.find( 'Transformer' ).destroy( );
 
                         var transformer = new Konva.Transformer( {
                             rotateEnabled: false,
@@ -110,7 +113,7 @@ class Component
 
                         event.target.getParent( ).add( transformer );
                         transformer.attachTo( event.target );
-                        globalLayer.draw( );
+                        mabGUI.layer.draw( );
                         
                     }
 
@@ -132,14 +135,14 @@ class Component
                     var transform = component.shape.getParent( ).getAbsoluteTransform( ).copy( );
                     // get relative position
                     transform.invert( );
-                    var pos = globalStage.getPointerPosition( );
+                    var pos = mabGUI.stage.getPointerPosition( );
                     var placePos = transform.point( pos );
                     var placeObj = addNewPlace( this, placePos ); // @todo: global function?
 
                     // turn last line into constructor?
                     // var placeObj = new Place( this, placePos );
 
-                    globalLayer.draw( );
+                    mabGUI.layer.draw( );
 
                 }
             } );
@@ -155,16 +158,18 @@ class Component
         this.shape.on( 'click',
             function( event )
             {
-                if( event.evt.button === 2 )
+                if( event.evt.button === 2 ) // rmb.
                 {
+
+                    console.log( 'asdf' );
 
                     // highlight
                     component.shape.stroke( 'blue' );
                     component.shape.strokeWidth( 3 );
                     component.shape.draw( );
 
-                    ipcRend.send( 'changeComponentDetails',
-                        { componentName: component.name } );
+                    // prompt for name change.
+                    ipcRend.send( 'updateComponent', this );
 
                 }
             }
@@ -181,8 +186,8 @@ class Component
             function( )
             {
                 component.useSelectionArea.position(
-                    { x: shape.getX( ),
-                      y: shape.getY( ) } );
+                    { x: component.shape.getX( ),
+                      y: component.shape.getY( ) } );
                 component.useSelectionArea.height( component.shape.getHeight( ) * component.shape.scaleY( ) );
                 
                 component.provideSelectionArea.position(
@@ -205,13 +210,13 @@ class Component
                     x: snapToGrid( component.group.x( ) ),
                     y: snapToGrid( component.group.y( ) )
                 } )
-                globalLayer.batchDraw( );
+                mabGUI.layer.batchDraw( );
             } );
         
         this.shape.on( 'mousemove',
             function( )
             {
-                var mousePos = globalStage.getPointerPosition( );
+                var mousePos = mabGUI.stage.getPointerPosition( );
                 component.tooltip.position( { x: mousePos.x + 10, y: mousePos.y + 10 } );
                 component.tooltip.text( component.name );
                 component.tooltip.show( );
@@ -234,8 +239,6 @@ class Component
                 window.removeEventListener( 'keydown', component.deletorPrompt );
             } );
 
-        
-
     }
 
     deletorPrompt( event )
@@ -253,9 +256,4 @@ class Component
 
 }
 
-// Catch new component name from ipcMain
-ipcRend.on("component->renderer", function(event, args) {
-
-    changeComponentName(args.component_name, args.name); // @todo: what's... this?
-
-});
+module.export = Component;
