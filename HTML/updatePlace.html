@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+
+        <meta name="Change Place Details" charset="utf-8">
+
+    </head>
+
+    <body>
+
+        <p>Please enter the place's updated name:</p>
+        New name: <input type="text" name="place_name" id="place_name" autofocus><br><hr>
+        <button id="submit">Change Place Details</button>
+        
+        <script>
+
+            let ipcRenderer = require( 'electron' ).ipcRenderer;
+
+            const submit = document.getElementById("submit");
+            let parentName = null;
+            let oldName = null;
+
+            ipcRenderer.on( 'changePlaceName-oldnametonewwindow',
+                function( event, componentName, placeName )
+                {
+                    parentName = componentName;
+                    oldName = placeName;
+                } );
+            
+
+            submit.addEventListener('click',
+                function( event )
+                {
+
+                    event.preventDefault();
+                    const newName = document.querySelector('#place_name').value.replace(/ /g,"_");
+
+                    // once submitted, send old & new name to driver.js (main process)
+                    ipcRenderer.send( 'changePlaceName-newnametomain', parentName, oldName, newName );
+
+                    window.close( );
+
+                } );
+
+        </script>
+
+    </body>
+
+</html>

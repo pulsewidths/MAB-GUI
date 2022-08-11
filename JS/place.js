@@ -3,50 +3,48 @@
 class Place
 {
 
-    constructor( name, parentComponent, position )
+    constructor( name, parentComponent, pos )
     {
 
         this.type = 'place';
         this.name = name;
         this.index = parentComponent.placeList.length;
 
-        this.parentComponent = parentComponent;
-        this.parentComponent.placeList.push( this );
-
-        this.transitionsOut = [ ];
-        this.transitionsIn = [ ];
+        this.component = parentComponent;
+        this.transitions = { in: [ ], out: [ ] }; // { in: [ ], out: [ ] }
         this.dependencies = [ ];
 
         this.offset = 0;
         this.dependency = null; // @todo: ??
 
-
-        this.initKonva( parentComponent, position );
-        this.initTooltip( parentComponent );
+        this.initKonva( pos );
+        this.initTooltip( );
         this.initListeners( );
 
     }
 
-    initKonva( parentComponent, position )
+    initKonva( pos )
     {
+
+        var component = this.component;
 
         this.shape = new Konva.Circle( 
             {
-                x: position.x, y: position.y,
+                x: pos.x, y: pos.y,
                 radius: 30,
                 stroke: 'black', strokeWidth: 1, fill: 'white',
                 name: 'place',
                 shadowBlue: 1,
                 draggable: true,
                 dragBoundFunc:
-                    function( position )
+                    function( pos )
                     {
-                        let x = position.x;
-                        let y = position.y;
-                        let minX = parentComponent.shape.getAbsolutePosition( ).x;
-                        let maxX = minX + (parentComponent.shape.getWidth( ) * parentComponent.shape.scaleX( ) );
-                        let minY = parentComponent.shape.getAbsolutePosition( ).y;
-                        let maxY = minY + (parentComponent.shape.getHeight( ) * parentComponent.shape.scaleY( ) );
+                        let x = pos.x;
+                        let y = pos.y;
+                        let minX = component.shape.getAbsolutePosition( ).x;
+                        let maxX = minX + ( component.shape.getWidth( ) * component.shape.scaleX( ) );
+                        let minY = component.shape.getAbsolutePosition( ).y;
+                        let maxY = minY + ( component.shape.getHeight( ) * component.shape.scaleY( ) );
                         if( x < minX ) { x = minX; }
                         if( maxX < x ) { x = maxX; }
                         if( y < minY ) { y = minY; }
@@ -56,11 +54,11 @@ class Place
             }
         );
 
-        this.parentComponent.group.add( this.shape );
+        this.component.group.add( this.shape );
 
     }
 
-    initTooltip( parentComponent )
+    initTooltip( )
     {
 
         this.tooltip = new Konva.Text( {
@@ -72,8 +70,10 @@ class Place
 
         } );
 
-        parentComponent.tooltipLayer.add( tooltip );
-        globalStage.add( parentComponent.tooltipLayer );
+        this.component.tooltipLayer.add( this.tooltip );
+
+        mabGUI.stage.add( this.component.tooltipLayer ); // @todo: ?
+
     }
 
     initListeners( )
@@ -82,12 +82,13 @@ class Place
         this.initLeftClickListeners( ); // single & double.
         this.initRightClickListeners( );
         this.initMovementListeners( );
-        this.initIPCListeners( );
 
     }
 
     initLeftClickListeners( )
     {
+
+        var place = this;
 
         // single left-click.
         this.shape.on( 'click',
@@ -96,24 +97,14 @@ class Place
                 if( event.evt.button === 0 )
                 {
 
-                    // if a source is selected, deselect it.
-                    if( srcPlace != null )
+                    if( mabGUI.assembly.selectedPlace == place )
                     {
-                        selectedPlace.shape.stroke( 'black' );
-                        selectedPlace.shape.strokeWidth( 1 );
-                        globalLayer.batchDraw( );
-                        // if we're clicking the currently selected place...
-                        if( selectedPlace == this )
-                        {
-                            selectedPlace = null;
-                            return;
-                        }
+                        mabGUI.assembly.deselectPlace( );
+                        return;
                     }
-                    // if a place isn't selected...
-                    selectedPlace = this;
-                    shape.stroke( 'blue' );
-                    shape.strokeWidth( 5 );
-                    shape.draw( );
+
+                    mabGUI.assembly.deselectPlace( );
+                    mabGUI.assembly.selectPlace( place );
 
                 }
             } );
@@ -123,31 +114,141 @@ class Place
     initRightClickListeners( )
     {
         
-        var place = this;
-        place.on( 'click',
+        let place = this;
+        let component = this.component;
+        let assembly = this.component.assembly;
+
+        // rmb, no prior selection
+        this.shape.on( 'click',
             function( event )
             {
 
-                if( event.evt.button === 2 && place.parentComponent.selectedPlace == null )
+                if( event.evt.button === 2 && assembly.selectedPlace == null )
                 {
 
-                    place.stroke( 'blue' );
-                    place.strokeWidth( 3 );
-                    place.draw( );
-                    ipcRend.send( 'openPlaceDetailsWindow' );
+                    place.shape.stroke( 'blue' );
+                    place.shape.strokeWidth( 3 );
+                    place.shape.draw( );
+
+                    ipcRenderer.send( 'changePlaceName-createwindow', component.name, place.name );
                     
                 }
 
             } );
 
-            place.on( 'click',
+            // rmb, prior selection exists
+            this.shape.on( 'click',
                 function( event )
                 {
-                    if( event.evt.button === 2 )
+                    if( event.evt.button === 2 && assembly.selectedPlace != null )
                     {
-                        
+
+                        console.log( assembly.selectedPlace );
+                        component.addTransition( assembly.selectedPlace, place );
+
                     }
                 } );
+
+    }
+
+    initMovementListeners( )
+    {
+
+        let place = this;
+
+        this.shape.on( 'dragend',
+            function( event )
+            {
+                place.shape.position(
+                    {
+                        x: mabGUI.snapCoords( place.shape.x( ) ),
+                        y: mabGUI.snapCoords( place.shape.y( ) )
+                    } );
+                mabGUI.layer.batchDraw( );
+            } );
+
+        this.shape.on( 'mousemove',
+            function( )
+            {
+                let mousePos = mabGUI.stage.getPointerPosition( );
+                place.tooltip.position(
+                    {
+                        x: mousePos.x + 10,
+                        y: mousePos.y + 10
+                    } );
+
+                    place.tooltip.text( place.component.name + '-' + place.name );
+                    place.tooltip.show( );
+
+                    place.component.tooltipLayer.batchDraw( );
+            } );
+
+        this.shape.on( 'dragmove',
+            function( )
+            {
+                place.tooltip.hide( );
+            } );
+
+        this.shape.on( 'mouseenter',
+            function( )
+            {
+                mabGUI.stage.container( ).style.cursor = 'pointer';
+
+                if( mabGUI.assembly.selectedPlace != null )
+                {
+                    if( place.component.validTransition( mabGUI.assembly.selectedPlace, place ) )
+                    {
+                        place.shape.stroke( 'green' );
+                        place.shape.strokeWidth( 3 );
+                        place.shape.draw( );
+                    } else {
+                        place.shape.stroke( 'red' );
+                        place.shape.strokeWidth( 3 );
+                        place.shape.draw( );
+                    }
+                }
+
+                window.addEventListener( 'keydown', place.removePlace );
+            } );
+
+        this.shape.on( 'mouseleave',
+            function( )
+            {
+                mabGUI.stage.container( ).style.cursor = 'default';
+
+                if( mabGUI.assembly.selectedPlace != place )
+                {
+                    place.shape.stroke( 'black' );
+                    place.shape.strokeWidth( 1 );
+                    mabGUI.layer.batchDraw( );
+                } else {
+                    mabGUI.assembly.selectPlace( mabGUI.assembly.selectedPlace );
+                }
+            } );
+
+        this.shape.on( 'mouseout',
+            function( )
+            {
+                place.tooltip.hide( );
+                place.component.tooltipLayer.draw( )
+                window.removeEventListener( 'keydown', place.removePlace );
+            } );
+
+    }
+
+    removePlace( event )
+    {
+
+        // del = 46
+        if( ( event.keyCode === 46 || event.keyCode == 8 ) &&
+            confirm( 'Are you sure you want to delete this Place?' ) )
+        {
+
+            this.tooltip.destroy();
+            this.component.selectPlace = null;
+            deletor( this );
+
+        }
 
     }
 
@@ -156,140 +257,6 @@ class Place
 // Add new place function, should only be called by component
 function addNewPlace( parentComponent, position ) {
 
-    var place = new Place( 'Place_' + parentComponent.placeList.length + 1, component, position );
-
-    // event: place right click, source selected
-    place.on("click", function(e) {
-
-        if(e.evt.button === 2 && selected_source != null) {
-
-            selected_dest_comp = component_obj;
-            selected_dest = place_obj;
-
-            if(validTransition(component_obj.place_list, selected_source, selected_source_comp, selected_dest, selected_dest_comp)) {
-                returned_transition_obj = addNewTransition(component_obj, selected_source, selected_dest);
-            }
-
-            stage.container().style.cursor = 'default';
-
-            // changes the source back to black
-            selected_source.place_konva.stroke('black');
-            selected_source.place_konva.strokeWidth(1);
-            layer.batchDraw();
-
-            selected_source = null;
-            selected_source_comp = null;
-            selected_dest = null;
-            selected_dest_comp = null;
-
-        }
-
-    });
-
-    // event: drag a place
-    place.on('dragend', (e) => {
-
-        place.position({
-
-            x: snapToGrid(place.x()),
-            y: snapToGrid(place.y())
-
-        });
-
-        layer.batchDraw();
-
-    });
-
-    // event: mouse over place
-    place.on('mousemove', function () {
-
-        var mousePos = stage.getPointerPosition();
-        tooltip.position({
-            x : mousePos.x + 10,
-            y : mousePos.y + 10
-        });
-
-        tooltip.text(component_obj.name + " - " + place_obj.name);
-        tooltip.show();
-
-        component_obj.tooltipLayer.batchDraw();
-
-    });
-
-    // event: place is being dragged
-    place.on('dragmove', (e) => {
-
-        tooltip.hide();
-
-    });
-
-    // event: mouse enter
-    place.on("mouseenter", function() {
-
-        stage.container().style.cursor = 'pointer';
-
-        if(selected_source != null) {
-
-            if(validTransition(component_obj.place_list, selected_source, selected_source_comp, place_obj, component_obj)) {
-
-                highlighted = true;
-                place.stroke('green');
-                place.strokeWidth(3);
-                place.draw();
-
-            } else {
-
-                highlighted = true;
-                place.stroke('red');
-                place.strokeWidth(3);
-                place.draw();
-
-            }
-
-        }
-
-        // event listener for deletion
-        window.addEventListener('keydown', removePlace);
-
-    });
-
-    // event: mouse leaves place
-    place.on('mouseleave', function () {
-
-        stage.container().style.cursor = 'default';
-
-        // if the mouse leaves a place that *isn't* the place selected, turn it black.
-        if(selected_source != place_obj) {
-
-            // changes the stroke and stroke width back to default if highlighted
-            //if(highlighted == true) {
-                place.stroke('black');
-                place.strokeWidth(1);
-                layer.batchDraw();
-                highlighted = false;
-            //}
-
-        // if the mouse leaves a place that *is* the place selected, turn it blue.
-        } else {
-            highlighted = true;
-            selected_source.place_konva.stroke('blue');
-            selected_source.place_konva.strokeWidth(5);
-            selected_source.place_konva.draw();
-        }
-
-    });
-
-    // event: mouse out 
-    place.on("mouseout", function() {
-
-        tooltip.hide();
-        component_obj.tooltipLayer.draw();
-
-        // remove event listener for deletion
-        window.removeEventListener('keydown', removePlace);
-
-    });
-
     // event: provide selection area right-click
     component_obj.provide_selection_area.on("click", function(e) {
 
@@ -297,7 +264,7 @@ function addNewPlace( parentComponent, position ) {
 
             selected_source.dependency = true;
 
-            var type = ipcRend.sendSync("set_dependency_type");
+            var type = ipcRenderer.sendSync("set_dependency_type");
 
             if(type == 'service') {
                 selected_source.dependency_type = 'PROVIDE'
@@ -343,133 +310,6 @@ function addNewPlace( parentComponent, position ) {
         }
 
     });
-
-    function removePlace(ev) {
-
-        // keyCode Delete key = 46
-        if(ev.keyCode === 46 || ev.keyCode == 8) {
-
-            if(confirm('Are you sure you want to delete this Place?')) {
-
-                // Delete it!
-                tooltip.destroy();
-                selected_source = null;
-                selected_source_comp = null;
-                selected_dest = null;
-                selected_dest_comp = null;
-
-                deletor(place_obj);
-            } else {
-                // Do nothing!
-                return;
-            }   
-        }
-
-    };
-
-    // returns places with empty inbound_transition lists
-    function findRoots(place_list) {
-
-        var roots = [];
-
-        for(var place_index = 0; place_index < place_list.length; place_index++) {
-            if(place_list[place_index].transition_inbound_list.length == 0) {
-                roots.push(place_list[place_index]);
-            }
-        }
-
-        return roots;
-
-    };
-
-    function validTransition(place_list, source_obj, source_comp, dest_obj, dest_comp) {
-
-        if(source_comp != dest_comp || source_obj == dest_obj) {
-            return false;
-        }
-
-        if(source_comp.transition_list.length == 0) {
-            return true;
-        }
-
-        // get root places; i.e. places with no in-transitions
-        var root_places = findRoots(place_list);
-
-        for(var root_index = 0; root_index < root_places.length; root_index++) {
-
-            var root_place = root_places[root_index];
-
-            // add prospective transition
-            var new_trans = new Transition('Transition', 'TransitionX', source_obj, dest_obj, 'defaultFunctionX');
-            source_obj.transition_outbound_list.push(new_trans);
-            dest_obj.transition_inbound_list.push(new_trans);
-
-            // is there a cycle?
-            cyclic = cycle(root_place);
-
-            source_obj.transition_outbound_list.pop();
-            dest_obj.transition_inbound_list.pop();
-
-            // remove transition from source and dest
-            // for(var trans_index = 0; trans_index < source_obj.transition_outbound_list.length; trans_index++) {
-            //     if(source_obj.transition_outbound_list[trans_index] === new_trans) {
-            //         source_obj.transition_outbound_list.splice(trans_index, 1);
-            //     }
-            // }
-            // for(var trans_index = 0; trans_index < dest_obj.transition_inbound_list.length; trans_index++) {
-            //     if(dest_obj.transition_inbound_list[trans_index] === new_trans) {
-            //         dest_obj.transition_inbound_list.splice(trans_index, 1);
-            //     }
-            // }
-
-            if(cyclic) {
-                return false;
-            }
-
-        }
-
-        // if a transition doesn't make a cycle, it's valid
-        return true;
-
-    }
-
-    // depth-first search for cycle
-    function cycle(place, visited=[]) {
-
-        // if 'place' has already been 'visited', there is a cycle
-        for(var index = 0; index < visited.length; index++) {
-
-            if(visited[index] === place) {
-                return true;
-            }
-
-        }
-
-        // 'place' has now been visited
-        visited.push(place);
-
-        // depth-first dive into place's transitions, until there are no transitions out
-        for(var outTransIndex = 0; outTransIndex < place.transition_outbound_list.length; outTransIndex++) {
-
-            cyclic = cycle(place.transition_outbound_list[outTransIndex].dest, visited);
-            visited.pop();
-            if(cyclic) { return true; }
-
-        }
-
-        return false;
-
-    };
-
-    function generateNextIndex(place_list) {
-
-        if(place_list.length == 0){
-            return 1;
-        } else {
-            return place_list[place_list.length - 1].index + 1;
-        }
-
-    };
 
     return place_obj;
 
@@ -538,12 +378,3 @@ function setTransitionOffset(source_obj, dest_obj){
     return offset;
 
 }
-
-// Catch new place name from ipcMain
-ipcRend.on("place->renderer", function(event, args) {
-
-    if(args.name != '') {
-        changePlaceName(args.component, args.place, args.name);
-    }
-
-});
