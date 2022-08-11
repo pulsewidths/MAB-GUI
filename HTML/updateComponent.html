@@ -4,31 +4,39 @@
     <head>
  
         <meta name="Change Component Details" charset="utf-8">
-        <script src="../JS/script.js"></script>
 
     </head>
 
     <body>
-        <p>Please enter the component's new name:</p>
-        New Component Name: <input type="text" name="componentName" id="componentName" autofocus><br><br>
+ 
+        <p>Please enter the component's updated name:</p>
+        New name: <input type="text" name="componentName" id="componentName" autofocus><br><br>
         <button id="submit">Change Name</button>
 
         <script>
-            const electron = require('electron');
-            const {ipcRenderer} = electron;
+            
+            let ipcRenderer = require( 'electron' ).ipcRenderer;
 
             const submit = document.getElementById("submit");
+            let oldName = null;
+
+            ipcRenderer.on( 'changeComponentName-oldnametonewwindow',
+                function( event, componentName )
+                {
+                    oldName = componentName;
+                } );
 
             submit.addEventListener( 'click',
                 function( event )
                 {
 
-                    event.preventDefault();
+                    event.preventDefault( );
                     const newName = document.querySelector('#componentName').value.replace(/ /g,"_");
-                    window.component.name = newName;
+
+                    // once submitted, send old & new name to driver.js (main process)
+                    ipcRenderer.send( 'changeComponentName-newnametomain', oldName, newName );
 
                     window.close( );
-        
                 } );
 
             </script>

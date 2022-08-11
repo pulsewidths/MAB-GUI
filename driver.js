@@ -1,23 +1,24 @@
 const electron = require( 'electron' );
-const { app, BrowserWindow, Menu } = electron;
-const ipcMain = electron.ipcMain;
-const remote = electron.remote;
+const { app, BrowserWindow, Menu, ipcMain } = electron;
+const Konva = require( 'Konva' );
+
 const url = require( 'url' );
 const path = require( 'path' );
-// const { constants } = require('http2'); @todo: ??
-const Konva = require( 'Konva' );
+
 const Component = require( './JS/component.js' );
 
 const pluginManager = require( './JS/pluginManager.js' ); // @todo: change filename
 
+// driver.js is ran in the main process (as opposed to )
+
 // on loading background stuff, run 'boot' function.
 app.on( 'ready', boot );
 
+// dev tools; comment this code to turn on/off.
+process.env.NODE_ENV = 'development';
+
 function boot( )
 {
-	
-	// dev tools; comment this code to turn on/off.
-	process.env.NODE_ENV = 'development';
 
 	window = new BrowserWindow( 
 		{
@@ -197,17 +198,66 @@ function initListeners( )
 {
 
 	// caught from component.js's rmb event
-	ipcMain.on( 'updateComponent',
-		function( event, component )
+	ipcMain.on( 'changeComponentName-createwindow',
+		function( event, componentName )
 		{
-			var componentWindow = new BrowserWindow( { width: 350, height: 200 } );
-			componentWindow.component = component;
+
+			var componentWindow = new BrowserWindow(
+				{
+					width: 350, height: 200,
+					webPreferences: { nodeIntegration: true }
+				} );
 			componentWindow.loadURL( url.format( {
 				pathname: path.join( __dirname, './HTML/updateComponent.html' ),
 				protocol: 'file',
 				slashes: true
 			} ) );
+
+			componentWindow.webContents.on( 'did-finish-load',
+				function( event )
+				{
+					// once the new window is loaded, send the new renderer the name of the component that's changing
+					componentWindow.webContents.send( 'changeComponentName-oldnametonewwindow', componentName );
+				} );
+
 		} );
+	// caught from place.js's rmb event
+	ipcMain.on( 'changePlaceName-createwindow',
+		function( event, componentName, placeName )
+		{
+			var placeWindow = new BrowserWindow(
+				{
+					width: 350, height: 200,
+					webPreferences: { nodeIntegration: true }
+				} );
+			placeWindow.loadURL( url.format( {
+				pathname: path.join( __dirname, './HTML/updatePlace.html' ),
+				protocol: 'file:',
+				slashes: true
+			} ) );
+
+			placeWindow.webContents.on( 'did-finish-load',
+				function( event )
+				{
+					placeWindow.webContents.send( 'changePlaceName-oldnametonewwindow', componentName, placeName );
+				} );
+		} );
+
+	// received from updateComponent.html's submission
+	ipcMain.on( 'changeComponentName-newnametomain',
+		function( event, oldName, newName )
+		{
+			// send old & new name to primary renderer
+			window.webContents.send( 'changeComponentName-renderer', oldName, newName );
+		} );
+	// received from updatePlace.html's submit button
+	ipcMain.on( 'changePlaceName-newnametomain',
+		function( event, componentName, oldName, newName )
+		{
+			// send old & new name to primary renderer
+			window.webContents.send( 'changePlaceName-renderer', componentName, oldName, newName )
+		} );
+		
 	ipcMain.on( 'openSimulatorWindow',
 		function( )
 		{
@@ -244,26 +294,6 @@ function initListeners( )
 			}
 			event.returnValue = dependencyType;
 		} );
-
-	ipcMain.on( 'openPlaceDetailsWindow',
-		function( )
-		{
-			var placeWindow = new BrowserWindow( { width: 350, height: 200 } );
-			placeWindow.loadURL( url.format( {
-				pathname: path.join( __dirname, './HTML/changePlaceDetails.html' ), // @todo: update filename?
-				protocol: 'file:',
-				slashes: true
-			} ) );
-		} );
-
-	ipcMain.on( 'place->main',
-		function( event, args )
-		{
-			window.webContents.send( 'place->renderer',
-				{ component: placeArgs.component, place: placeArgs.place, name: args.name } );
-			
-		}
-	);
 
 	ipcMain.on( 'transition->main',
 		function( event, args )

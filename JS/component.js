@@ -1,7 +1,7 @@
 class Component
 {
 
-    constructor( name, parentAssembly, pos ) // @todo: is type required...?
+    constructor( name, parentAssembly, pos )
     {
 
         this.type = 'component';
@@ -10,24 +10,123 @@ class Component
 
         this.assembly = parentAssembly;
         this.placeList = [ ];
-        this.transitionList = [ ];
-        this.transitionDictionary = { };
+        this.transitions = [ ];
         this.dependencyList = [ ];
 
-        this.tooltipLayer = null;
-        this.tooltip = null;
-
-        this.initKonva( pos.x, pos.y );
+        this.initKonva( pos );
         this.initTooltip( );
         this.initListeners( );
 
     }
 
-    initKonva( posX, posY )
+    addPlace( pos )
+    {
+
+        let name = 'Place_' + ( this.placeList.length + 1 );
+        let place = new Place( name, this, pos );
+
+        this.placeList.push( place );
+
+    }
+    
+    getPlace( placeName )
+    {
+        for( let index = 0; index < this.placeList.length; index++ )
+        {
+            if( this.placeList[ index ].name == placeName )
+            {
+                return this.placeList[ index ];
+            }
+        }
+    }
+
+    addTransition( srcPlace, destPlace )
+    {
+        if( this.validTransition( srcPlace, destPlace ) )
+        {
+            let transition = new Transition( 'TransitionX', srcPlace, destPlace, 'defaultFunctionX' );
+
+            this.transitions.push( transition );
+        }
+
+        mabGUI.stage.container( ).style.cursor = 'default';
+        this.assembly.deselectPlace( );
+    }
+
+    validTransition( srcPlace, destPlace )
+    {
+
+        let MAX_TRANSITIONS = 3;
+
+        if( srcPlace.transitions.out.length > MAX_TRANSITIONS ||
+            destPlace.transitions.in.length > MAX_TRANSITIONS )
+            {
+                alert( 'Can\'t create more than ' + MAX_TRANSITIONS + ' transitions.' );
+                return false;
+            }
+
+        if( srcPlace.component != destPlace.component || srcPlace == destPlace )
+        {
+            return false;
+        }
+        if( srcPlace.component.transitions.length == 0 )
+        {
+            return true;
+        }
+
+        let roots = srcPlace.component.getRoots( );
+
+        for( let rootIndex = 0; rootIndex < roots.length; rootIndex++ )
+        {
+            let root = roots[ rootIndex ];
+
+            let transition = new Transition( 'TransitionX', srcPlace, destPlace, 'defaultFunctionX' );
+
+            let valid = !this.isCyclic( );
+
+            // @todo: wrap the following in their own function in Transition ?
+            srcPlace.transitions.out.pop( );
+            destPlace.transitions.in.pop( );
+            // transition.delete( );
+
+            return valid;
+        }
+
+    }
+
+    // dfs for cycle
+    isCyclic( place, visited=[ ] )
+    {
+
+        // check for current place in visited list.
+        for( let index = 0; index < visited.length; index++ )
+        {
+            if( visited[ index ] == place )
+            {
+                return true;
+            }
+        }
+
+        // place is now visited
+        visited.push( place );
+
+        // recurse for each transition out.
+        for( let transitionIndex = 0; transitionIndex < place.transitions.out.length; transitionIndex++ )
+        {
+            let cyclic = this.isCyclic( place.transitions.out[ transitionIndex ].dest, visited );
+            visited.pop( );
+            if( cyclic ) { return true; }
+        }
+
+        return false;
+
+    }
+
+    initKonva( pos )
     {
 
         this.group = new Konva.Group( {
-            x: posX, y: posY,
+            x: pos.x, y: pos.y,
             width: 300, height: 350,
             draggable: true, name: 'componentGroup'
         } );
@@ -61,13 +160,16 @@ class Component
     initTooltip( )
     {
 
+        this.tooltipLayer = new Konva.Layer( );
+
         this.tooltip = new Konva.Text( {
             text: '', fontFamily: 'Calibri', fontsize: 12,
             padding: 5, textFill: 'white', fill: 'black',
             alpha: 0.75, visible: false
         } );
-        this.tooltipLayer = new Konva.Layer( );
+        
         this.tooltipLayer.add( this.tooltip );
+
         mabGUI.stage.add( this.tooltipLayer );
 
     }
@@ -133,14 +235,13 @@ class Component
                 {
 
                     var transform = component.shape.getParent( ).getAbsoluteTransform( ).copy( );
+
                     // get relative position
                     transform.invert( );
                     var pos = mabGUI.stage.getPointerPosition( );
                     var placePos = transform.point( pos );
-                    var placeObj = addNewPlace( this, placePos ); // @todo: global function?
 
-                    // turn last line into constructor?
-                    // var placeObj = new Place( this, placePos );
+                    component.addPlace( placePos );
 
                     mabGUI.layer.draw( );
 
@@ -161,15 +262,12 @@ class Component
                 if( event.evt.button === 2 ) // rmb.
                 {
 
-                    console.log( 'asdf' );
-
-                    // highlight
                     component.shape.stroke( 'blue' );
                     component.shape.strokeWidth( 3 );
                     component.shape.draw( );
 
-                    // prompt for name change.
-                    ipcRend.send( 'updateComponent', this );
+                    // send signal to driver.js, with name of component to be changed
+                    ipcRenderer.send( 'changeComponentName-createwindow', component.name );
 
                 }
             }
@@ -207,8 +305,8 @@ class Component
             function( )
             {
                 component.group.position( {
-                    x: snapToGrid( component.group.x( ) ),
-                    y: snapToGrid( component.group.y( ) )
+                    x: mabGUI.snapCoords( component.group.x( ) ),
+                    y: mabGUI.snapCoords( component.group.y( ) )
                 } )
                 mabGUI.layer.batchDraw( );
             } );
@@ -238,6 +336,25 @@ class Component
                 component.tooltipLayer.draw( );
                 window.removeEventListener( 'keydown', component.deletorPrompt );
             } );
+
+    }
+
+    getRoots( )
+    {
+
+        let roots = [ ];
+
+        for( let placeIndex = 0; placeIndex < this.placeList.length; placeIndex++ )
+        {
+
+            if( this.placeList[ placeIndex ].in != null )
+            {
+                roots.push( this.placeList[ placeIndex ] );
+            } else {
+                return roots;
+            }
+
+        }
 
     }
 
