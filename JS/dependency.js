@@ -1,3 +1,5 @@
+const { ipcRenderer } = require("electron");
+
 // Add new Service dependency function, should only be called by place and transition
 function addNewServiceDependency(component, source_element, source_obj, component_obj, component_group, tooltipLayer) {
 
@@ -308,7 +310,7 @@ function addNewServiceDependency(component, source_element, source_obj, componen
                 }
             } else {
                 // right clk source was not selected, open window for editing
-                ipcRend.send("change_stub_details", {component: component_obj.name, stub: dependency_obj.name});
+                ipcRenderer.send("change_stub_details", {component: component_obj.name, stub: dependency_obj.name});
             }
             // reset source and dest
             provide_stub_konva = null;
@@ -777,7 +779,7 @@ function addNewDataDependency(component, source_element, source_obj, component_o
             } else {
                 // right clk source was not selected, open window for editing
                 console.log("Open window for editing " + source_obj.name + " dependency stub details");
-                ipcRend.send("change_stub_details", {component: component_obj.name, stub: dependency_obj.name});
+                ipcRenderer.send("change_stub_details", {component: component_obj.name, stub: dependency_obj.name});
             }
             // reset source and dest
             provide_stub_konva = null;
@@ -808,6 +810,6 @@ function checkConnectionExist(provide_dependency_obj, use_dependency_obj){
     return false;
 }
 // Catch new stub name from ipcMain
-ipcRend.on("stub->renderer", function(event, args) {
+ipcRenderer.on("stub->renderer", function(event, args) {
     changeStubName(args.component, args.old_name, args.new_name);
 });
