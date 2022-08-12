@@ -1,5 +1,3 @@
-const { ipcRenderer } = require("electron");
-
 // Add new Service dependency function, should only be called by place and transition
 function addNewServiceDependency(component, source_element, source_obj, component_obj, component_group, tooltipLayer) {
 

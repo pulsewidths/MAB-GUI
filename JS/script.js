@@ -3,7 +3,7 @@ const BrowserWindow = require('electron').remote.BrowserWindow;
 const url = require('url');
 const path = require('path');
 
-const ipcRend = require('electron').ipcRenderer;
+const ipcRenderer = require('electron').ipcRenderer;
 const remote = require('electron').remote;
 
 var componentList = [];
@@ -21,31 +21,6 @@ var destObj = null;
 
 const MAX_DEPENDENCY_COUNT = 3;
 const max_transition_count = 3; // const global max transition count coming out of any one place
-
-class Transition {
-    constructor(type, name, src, dest, func) {
-        this.type = type;
-        this.name = name;
-        this.index;
-        this.src = src;
-        this.tran_group_konva;
-        this.tran_select_konva;
-        this.tran_konva;
-        this.dest = dest;
-        this.func = func;
-        this.component_obj;
-        this.dependency_count = 0; // 3 max
-        this.dependency = false;
-        this.dependency_type = '';
-        this.dependency_konva_list = [];
-        this.offset;
-        this.dependency_obj_list = [];
-        this.duration_min = 1;
-        this.duration_max = 2;
-        this.current_duration = 0;
-        this.offset;
-    };
-};
 
 class Dependency {
     constructor(type, name) {
@@ -73,19 +48,6 @@ class Connection {
         this.provide_component_name;
         this.use_component_name;
     }
-};
-
-function snapToGrid(pos){
-    return Math.round(pos / blockSnapSize) * blockSnapSize;
-};
-
-// Function to change place name
-function changePlaceName(component, place, new_place_name) {
-    // find the component obj
-    var found_component_obj = component_list.find(function(element) { return element.name == component; });
-    var found_place_obj = found_component_obj.place_list.find(function(element) { return element.name == place; });
-    // set place obj to its new name
-    if(found_place_obj){ found_place_obj.name = new_place_name; }
 };
 
 // Function to change place's dependency status

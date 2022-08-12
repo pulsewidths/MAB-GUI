@@ -1,124 +1,20 @@
 class Component
 {
 
-    constructor( name, parentAssembly, pos )
+    constructor( name, pos )
     {
 
         this.type = 'component';
         this.name = name;
-        this.index = parentAssembly.componentList.length;
+        this.index = mabGUI.assembly.componentList.length;
 
-        this.assembly = parentAssembly;
-        this.placeList = [ ];
+        this.places = [ ];
         this.transitions = [ ];
-        this.dependencyList = [ ];
+        this.dependencies = [ ];
 
         this.initKonva( pos );
         this.initTooltip( );
         this.initListeners( );
-
-    }
-
-    addPlace( pos )
-    {
-
-        let name = 'Place_' + ( this.placeList.length + 1 );
-        let place = new Place( name, this, pos );
-
-        this.placeList.push( place );
-
-    }
-    
-    getPlace( placeName )
-    {
-        for( let index = 0; index < this.placeList.length; index++ )
-        {
-            if( this.placeList[ index ].name == placeName )
-            {
-                return this.placeList[ index ];
-            }
-        }
-    }
-
-    addTransition( srcPlace, destPlace )
-    {
-        if( this.validTransition( srcPlace, destPlace ) )
-        {
-            let transition = new Transition( 'TransitionX', srcPlace, destPlace, 'defaultFunctionX' );
-
-            this.transitions.push( transition );
-        }
-
-        mabGUI.stage.container( ).style.cursor = 'default';
-        this.assembly.deselectPlace( );
-    }
-
-    validTransition( srcPlace, destPlace )
-    {
-
-        let MAX_TRANSITIONS = 3;
-
-        if( srcPlace.transitions.out.length > MAX_TRANSITIONS ||
-            destPlace.transitions.in.length > MAX_TRANSITIONS )
-            {
-                alert( 'Can\'t create more than ' + MAX_TRANSITIONS + ' transitions.' );
-                return false;
-            }
-
-        if( srcPlace.component != destPlace.component || srcPlace == destPlace )
-        {
-            return false;
-        }
-        if( srcPlace.component.transitions.length == 0 )
-        {
-            return true;
-        }
-
-        let roots = srcPlace.component.getRoots( );
-
-        for( let rootIndex = 0; rootIndex < roots.length; rootIndex++ )
-        {
-            let root = roots[ rootIndex ];
-
-            let transition = new Transition( 'TransitionX', srcPlace, destPlace, 'defaultFunctionX' );
-
-            let valid = !this.isCyclic( );
-
-            // @todo: wrap the following in their own function in Transition ?
-            srcPlace.transitions.out.pop( );
-            destPlace.transitions.in.pop( );
-            // transition.delete( );
-
-            return valid;
-        }
-
-    }
-
-    // dfs for cycle
-    isCyclic( place, visited=[ ] )
-    {
-
-        // check for current place in visited list.
-        for( let index = 0; index < visited.length; index++ )
-        {
-            if( visited[ index ] == place )
-            {
-                return true;
-            }
-        }
-
-        // place is now visited
-        visited.push( place );
-
-        // recurse for each transition out.
-        for( let transitionIndex = 0; transitionIndex < place.transitions.out.length; transitionIndex++ )
-        {
-            let cyclic = this.isCyclic( place.transitions.out[ transitionIndex ].dest, visited );
-            visited.pop( );
-            if( cyclic ) { return true; }
-        }
-
-        return false;
 
     }
 
@@ -167,7 +63,7 @@ class Component
             padding: 5, textFill: 'white', fill: 'black',
             alpha: 0.75, visible: false
         } );
-        
+
         this.tooltipLayer.add( this.tooltip );
 
         mabGUI.stage.add( this.tooltipLayer );
@@ -185,12 +81,13 @@ class Component
 
     initLeftClickListeners( )
     {
-        
+
         // single-click on stage.
         // @todo: should this be somewhere else...?
         mabGUI.stage.on( 'click',
             function( event )
             {
+
                 if( event.evt.button === 0 )
                 {
                     // if clicking on empty area...
@@ -200,27 +97,23 @@ class Component
                         mabGUI.layer.draw( );
                         return;
                     }
-
                     // if clicking on a component...
-                    if( event.target.hasName( 'component' ) )
+                    if ( event.target.hasName( 'component' ) )
                     {
-
                         // remove any current selection
                         mabGUI.stage.find( 'Transformer' ).destroy( );
-
-                        var transformer = new Konva.Transformer( {
-                            rotateEnabled: false,
-                            enabledAnchors: [ 'middle-right', 'bottom-center', 'bottom-right' ]
-                        } );
-
+                        var transformer = new Konva.Transformer(
+                            { rotateEnabled: false,
+                              enabledAnchors: ['middle-right', 'bottom-center', 'bottom-right'] }
+                        );
                         event.target.getParent( ).add( transformer );
                         transformer.attachTo( event.target );
                         mabGUI.layer.draw( );
-                        
                     }
-
                 }
+
             }
+
         );
 
         // weirdness from js's anonymous scoping
@@ -285,14 +178,16 @@ class Component
             {
                 component.useSelectionArea.position(
                     { x: component.shape.getX( ),
-                      y: component.shape.getY( ) } );
+                      y: component.shape.getY( ) }
+                );
                 component.useSelectionArea.height( component.shape.getHeight( ) * component.shape.scaleY( ) );
-                
+
                 component.provideSelectionArea.position(
-                    { x: component.shape.getX( ) + ( component.shape.getWidth( ) * component.shape.scaleX( ) ) - 15,
-                      y: component.shape.getY( ) } );
-                      component.provideSelectionArea.height( component.shape.getHeight( ) * component.shape.scaleY( ) );
-            } );
+                    { x: component.shape.getX() + ( component.shape.getWidth( ) * component.shape.scaleX( ) ) - 15,
+                      y: component.shape.getY() }
+                    );
+                component.provideSelectionArea.height( component.shape.getHeight( ) * component.shape.scaleY( ) );
+            });
 
         this.group.on( 'dragmove',
             function( )
@@ -304,13 +199,13 @@ class Component
         this.group.on( 'dragend',
             function( )
             {
-                component.group.position( {
-                    x: mabGUI.snapCoords( component.group.x( ) ),
-                    y: mabGUI.snapCoords( component.group.y( ) )
-                } )
+                component.group.position(
+                    { x: mabGUI.snapCoords( component.group.x( ) ),
+                      y: mabGUI.snapCoords( component.group.y( ) ) }
+                );
                 mabGUI.layer.batchDraw( );
             } );
-        
+
         this.shape.on( 'mousemove',
             function( )
             {
@@ -335,7 +230,150 @@ class Component
                 component.tooltip.hide( );
                 component.tooltipLayer.draw( );
                 window.removeEventListener( 'keydown', component.deletorPrompt );
-            } );
+            });
+
+    }
+
+    findPlace( placeName )
+    {
+        for( let index = 0; index < this.places.length; index++ )
+        {
+            if( this.places[ index ].name == placeName )
+            {
+                return this.places[ index ];
+            }
+        }
+    }
+
+    addPlace( pos )
+    {
+
+        let name = 'Place_' + (this.places.length + 1 );
+        let place = new Place( name, this, pos );
+        this.places.push( place );
+        mabGUI.layer.draw( );
+
+    }
+
+    addTransition( source, destination )
+    {
+
+        const MAX_TRANSITIONS = 3;
+
+        if( this.validTransition( source, destination ) )
+        {
+
+            let name = 'Transition_' + this.transitions.length;
+            let func = 'defaultFunction' + this.transitions.length;
+
+            let transition = new Transition( name, source, destination, func );
+
+            this.transitions.push( transition );
+            source.transitions.out.push( transition );
+            destination.transitions.in.push( transition );
+
+            mabGUI.layer.draw( );
+
+        } else {
+            alert('Can\'t create more than ' + MAX_TRANSITIONS + ' transitions.');
+        }
+
+        mabGUI.stage.container( ).style.cursor = 'default';
+        mabGUI.assembly.deselectPlace( );
+    }
+
+    // @todo: should this possibly be in Assembly?
+    validTransition( source, destination )
+    {
+
+        let name = 'Transition_' + this.transitions.length;
+        let func = 'defaultFunction' + this.transitions.length;
+
+        let transition = new Transition( name, source, destination, func );
+
+        this.transitions.push( transition );
+        source.transitions.out.push( transition );
+        destination.transitions.in.push(transition );
+
+        const MAX_TRANSITIONS = 3;
+
+        if ( source.transitions.out.length > MAX_TRANSITIONS ||
+            destination.transitions.in.length > MAX_TRANSITIONS )
+        {
+            this.transitions.pop( );
+            source.transitions.out.pop( );
+            destination.transitions.in.pop( );
+            return false;
+        }
+
+        if ( source.component != destination.component || source == destination )
+        {
+            this.transitions.pop( );
+            source.transitions.out.pop( );
+            destination.transitions.in.pop( );
+            return false;
+        }
+        if (source.component.transitions.length == 0 )
+        {
+            this.transitions.pop( );
+            source.transitions.out.pop( );
+            destination.transitions.in.pop( );
+            return true;
+        }
+
+        let roots = source.component.getRoots( );
+
+        for( let rootIndex = 0; rootIndex < roots.length; rootIndex++ )
+        {
+            let root = roots[ rootIndex ];
+
+            console.log( roots );
+
+            let valid = !this.isCyclic( root );
+
+            if( !valid )
+            {
+                this.transitions.pop( );
+                source.transitions.out.pop( );
+                destination.transitions.in.pop( );
+                return false;
+            }
+
+        }
+
+        this.transitions.pop( );
+        source.transitions.out.pop( );
+        destination.transitions.in.pop( );
+
+        return true;
+
+    }
+
+    // dfs for cycle
+    isCyclic( place, visited=[ ] )
+    {
+
+        // check for current place in visited list.
+        for( let index = 0; index < visited.length; index++ )
+        {
+            if( visited[ index ] == place )
+            {
+                return true;
+            }
+        }
+
+        // place is now visited
+        visited.push( place );
+
+        // recurse for each transition out.
+        for( let transitionIndex = 0; transitionIndex < place.transitions.out.length; transitionIndex++ )
+        {
+            let cyclic = this.isCyclic( place.transitions.out[ transitionIndex ].destination, visited );
+            visited.pop( );
+            if( cyclic ) { return true; }
+        }
+
+        return false;
 
     }
 
@@ -344,12 +382,12 @@ class Component
 
         let roots = [ ];
 
-        for( let placeIndex = 0; placeIndex < this.placeList.length; placeIndex++ )
+        for( let placeIndex = 0; placeIndex < this.places.length; placeIndex++ )
         {
 
-            if( this.placeList[ placeIndex ].in != null )
+            if( this.places[ placeIndex ].transitions.in.length == 0 )
             {
-                roots.push( this.placeList[ placeIndex ] );
+                roots.push( this.places[ placeIndex ] );
             } else {
                 return roots;
             }
@@ -358,15 +396,14 @@ class Component
 
     }
 
-    deletorPrompt( event )
+    deletorPrompt( event, component )
     {
 
-        if( event.keyCode === 46 || event.keyCode === 8 )
+        if( ( event.keyCode === 46 || event.keyCode === 8 ) &&
+              confirm( 'Deleting this component will remove everything inside of it - are you sure?' ) );
         {
-            if( confirm( 'Deleting this component will remove everything inside of it - are you sure?' ) )
-            {
-                deletor( this );
-            }
+            component.tooltip.destroy( );
+            deletor( this );
         }
 
     }

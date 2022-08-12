@@ -3,19 +3,16 @@
 class Place
 {
 
-    constructor( name, parentComponent, pos )
+    constructor( name, component, pos )
     {
 
         this.type = 'place';
         this.name = name;
-        this.index = parentComponent.placeList.length;
+        this.index = component.places.length;
 
-        this.component = parentComponent;
+        this.component = component;
         this.transitions = { in: [ ], out: [ ] }; // { in: [ ], out: [ ] }
         this.dependencies = [ ];
-
-        this.offset = 0;
-        this.dependency = null; // @todo: ??
 
         this.initKonva( pos );
         this.initTooltip( );
@@ -116,14 +113,13 @@ class Place
         
         let place = this;
         let component = this.component;
-        let assembly = this.component.assembly;
 
         // rmb, no prior selection
         this.shape.on( 'click',
             function( event )
             {
 
-                if( event.evt.button === 2 && assembly.selectedPlace == null )
+                if( event.evt.button === 2 && mabGUI.assembly.selectedPlace == null )
                 {
 
                     place.shape.stroke( 'blue' );
@@ -140,11 +136,10 @@ class Place
             this.shape.on( 'click',
                 function( event )
                 {
-                    if( event.evt.button === 2 && assembly.selectedPlace != null )
+                    if( event.evt.button === 2 && mabGUI.assembly.selectedPlace != null )
                     {
 
-                        console.log( assembly.selectedPlace );
-                        component.addTransition( assembly.selectedPlace, place );
+                        component.addTransition( mabGUI.assembly.selectedPlace, place );
 
                     }
                 } );
@@ -236,18 +231,16 @@ class Place
 
     }
 
-    removePlace( event )
+    deletorPrompt( event, place )
     {
 
         // del = 46
         if( ( event.keyCode === 46 || event.keyCode == 8 ) &&
             confirm( 'Are you sure you want to delete this Place?' ) )
         {
-
-            this.tooltip.destroy();
-            this.component.selectPlace = null;
-            deletor( this );
-
+            place.tooltip.destroy();
+            mabGUI.assembly.selectedPlace = null;
+            deletor( component );
         }
 
     }
@@ -257,6 +250,8 @@ class Place
 // Add new place function, should only be called by component
 function addNewPlace( parentComponent, position ) {
 
+    // @todo: move this to dependency.js?
+    //
     // event: provide selection area right-click
     component_obj.provide_selection_area.on("click", function(e) {
 
@@ -284,6 +279,8 @@ function addNewPlace( parentComponent, position ) {
 
     });
 
+    // @todo: move this to dependency.js?
+    //
     // event: provide selection area mouse over
     component_obj.provide_selection_area.on("mouseover", function() {
 
@@ -298,6 +295,8 @@ function addNewPlace( parentComponent, position ) {
 
     });
 
+    // @todo: move this to dependency.js?
+    //
     // event: provide selection area mouse out
     component_obj.provide_selection_area.on("mouseout", function() {
 
@@ -311,10 +310,10 @@ function addNewPlace( parentComponent, position ) {
 
     });
 
-    return place_obj;
-
 };
 
+    // @todo: move this to dependency.js?
+    //
 function createDependencyPort(component_obj, place_obj) {
 
     var component = component_obj.konva_component;
@@ -354,27 +353,3 @@ function createDependencyPort(component_obj, place_obj) {
     }
 
 };
-
-// set the offset of the transition
-function setTransitionOffset(source_obj, dest_obj){
-
-    var offset;
-
-    var offset_selection = new Array(0, 30, -30);
-
-    for (var i = 0; i < source_obj.transition_outbound_list.length; i++) {
-        // outbound transition has same dest place
-        if(source_obj.transition_outbound_list[i].dest == dest_obj){
-            // dont set offset to this
-            var tran_offset = source_obj.transition_outbound_list[i].offset;
-            // remove offset from selections list
-            var index = offset_selection.indexOf(tran_offset);
-            if (index > -1) {
-                offset_selection.splice(index, 1);
-            }
-        }
-    }
-    offset = offset_selection[0];
-    return offset;
-
-}

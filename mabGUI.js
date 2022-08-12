@@ -1,5 +1,7 @@
+const Konva = require( 'Konva' );
 const { ipcRenderer } = require("electron");
 
+// mabGUI runs from the renderer process, called by index.html 
 class MabGUI
 {
     constructor( )
@@ -49,7 +51,7 @@ class MabGUI
         ipcRenderer.on( 'changePlaceName-renderer',
             function( event, componentName, oldName, newName )
             {
-                assembly.getComponent( componentName ).getPlace( oldName ).name = newName;
+                assembly.getComponent( componentName ).findPlace( oldName ).name = newName;
             } );
     }
 
@@ -76,7 +78,9 @@ class Assembly
     {
 
         this.componentList = [ ];
+
         this.selectedPlace = null;
+        this.selectedTransition = null;
 
     }
 
@@ -84,9 +88,10 @@ class Assembly
     {
 
         let name = 'Component_' + this.componentList.length + 1;
-        let component = new Component( name, this, pos );
+        let component = new Component( name, pos );
 
         this.componentList.push( component );
+        mabGUI.layer.draw( );
 
     }
 

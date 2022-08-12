@@ -1,188 +1,291 @@
+class Transition
+{
+    constructor( name, source, destination, func )
+    {
+
+        this.type = 'transition';
+        this.name = name;
+        this.index = source.component.transitions.length;
+
+        this.source = source;
+        this.destination = destination;
+        this.function = func;
+
+        this.component = source.component;
+        this.dependencies = [ ]; // 3 max
+
+        this.current_duration = 0;
+        this.duration_min = 1;
+        this.duration_max = 2;
+
+        this.initOffset( );
+
+        this.initKonva( );
+        this.initTooltip( );
+        this.initListeners( );
+
+    }
+
+    initKonva( )
+    {
+
+        this.group = new Konva.Group( {
+            name: 'transitionGroup'
+        } );
+
+        this.shape = new Konva.Line( {
+            points: [ this.source.shape.getX( ), this.source.shape.getY( ),
+                      ( ( this.source.shape.getX( ) + this.destination.shape.getX( ) ) / 2 ) + this.offset,
+                      this.destination.shape.getX( ), this.destination.shape.getY( ) ],
+            stroke: 'black', strokeWidth: 1,
+            name: 'transition', tension: 1
+        } );
+
+        this.selectShape = new Konva.Circle( {
+            x: ( ( this.source.shape.getX( ) + this.destination.shape.getX( ) ) / 2 ) + this.offset,
+            y: ( this.source.shape.getY( ) + this.destination.shape.getY( ) ) / 2,
+            name: 'Transition', text: this.name,
+            stroke: 'black', fill: 'white',
+            radius: 10, opacity: 0, fill: 'white'
+        } );
+
+        this.source.shape.moveToTop( );
+        this.destination.shape.moveToTop( );
+
+        this.group.add( this.shape );
+        this.group.add( this.selectShape );
+        this.component.group.add( this.group );
+
+        mabGUI.layer.batchDraw( );
+
+    }
+
+    initTooltip( )
+    {
+
+        this.tooltip = new Konva.Text( {
+            text: '', fontFamily: 'Calibri', fontSize: 12,
+            textFill: 'white', fill: 'black', alpha: 0.75, visible: false,
+            padding: 5
+        } );
+
+        this.component.tooltipLayer.add( this.tooltip );
+        mabGUI.stage.add( this.component.tooltipLayer );
+
+    }
+
+    initOffset( )
+    {
+
+        let offsetList = [ 0, 30, -30, 60, -60 ];
+
+        for (let outIndex = 0; outIndex < this.source.transitions.out.length; outIndex++ )
+        {
+
+            if ( this.source.transitions.out[ outIndex ].destination == this.destination )
+            {
+                let foundOffset = this.source.transitions.out[ outIndex ].offset;
+                let foundOffsetIndex = offsetList.indexOf( foundOffset );
+                if( foundOffsetIndex != -1 )
+                {
+                    offsetList.splice( foundOffsetIndex, 1 );
+                }
+            }
+
+        }
+
+        this.offset = offsetList[ 0 ];
+
+    }
+
+    initListeners( )
+    {
+
+        this.initLeftClickListeners();
+        this.initRightClickListeners();
+        this.initMovementListeners();
+
+    }
+
+    initLeftClickListeners( )
+    {
+
+        let transition = this;
+
+        this.selectShape.on( 'click',
+            function( event )
+            {
+
+                if( event.evt.button === 0 )
+                {
+                    transition.shape.stroke( 'blue' );
+                    transition.shape.strokeWidth( 3 );
+                    transition.shape.draw( );
+                    mabGUI.assembly.selectedTransition = transition;
+                }
+
+            } );
+
+    }
+
+    initRightClickListeners( )
+    {
+
+        let transition = this;
+
+        this.selectShape.on( 'click',
+            function( event )
+            {
+
+                transition.shape.stroke( 'blue' );
+                transition.shape.strokeWidth( 3 );
+                transition.shape.draw( );
+
+                ipcRenderer.send( 'change_transition_details',
+                                { component: transition.component.name,
+                                  transition: transition,
+                                  function: transition.func } );
+
+            } );
+
+    }
+
+    initMovementListeners( )
+    {
+
+        let transition = this;
+
+        this.selectShape.on( 'moveenter',
+            function( )
+            {
+
+                mabGUI.stage.container( ).style.cursor = 'pointer';
+
+            } );
+
+        this.selectShape.on( 'mouseover',
+            function( )
+            {
+
+                window.addEventListener( 'keydown', transition.deletorPrompt );
+
+            } );
+
+        this.selectShape.on( 'mousemove',
+            function( )
+            {
+
+                let mousePos = mabGUI.stage.getPointerPosition( );
+                transition.tooltip.position( { x: mousePos.x + 10, y: mousePos.y + 10 } );
+                transition.tooltip.text( transition.component.name + '-' + transition.name );
+                transition.tooltip.show( );
+                transition.component.tooltipLayer.batchDraw( );
+
+            } );
+
+        this.selectShape.on( 'mouseout',
+            function( )
+            {
+
+                mabGUI.stage.container( ).style.cursor = 'default';
+                transition.shape.stroke( 'black' );
+                transition.shape.strokeWidth( 1 );
+                transition.tooltip.hide( );
+                transition.component.tooltipLayer.draw( );
+                window.removeEventListener( 'keydown', transition.deletorPrompt );
+
+            } );
+
+        this.source.shape.on( 'dragmove',
+            function( )
+            {
+
+                transition.shape.setPoints(
+                    [ mabGUI.snapCoords( transition.source.shape.getX( ) ),
+                      mabGUI.snapCoords( transition.source.shape.getY( ) ),
+                      mabGUI.snapCoords( ( ( transition.source.shape.getX( ) + transition.destination.shape.getX( )) / 2 ) + transition.offset ),
+                      mabGUI.snapCoords( transition.source.shape.getY( ) + transition.destination.shape.getY( ) ) / 2,
+                      mabGUI.snapCoords( transition.destination.shape.getX( ) ),
+                      mabGUI.snapCoords( transition.destination.shape.getY( ) )
+
+                ] );
+
+                transition.selectShape.position( {
+                    x: mabGUI.snapCoords( ( ( transition.source.shape.getX( ) + transition.destination.shape.getX( ) ) / 2 ) + transition.offset ),
+                    y: mabGUI.snapCoords( ( transition.source.shape.getY( ) + transition.destination.shape.getY( ) ) / 2 )
+                } );
+
+            });
+
+        this.destination.shape.on('dragmove',
+            function () {
+
+                transition.shape.setPoints(
+                    [mabGUI.snapCoords(transition.source.shape.getX()),
+                    mabGUI.snapCoords(transition.source.shape.getY()),
+                    mabGUI.snapCoords(((transition.source.shape.getX() + transition.destination.shape.getX()) / 2) + transition.offset),
+                    mabGUI.snapCoords(transition.source.shape.getY() + transition.destination.shape.getY()) / 2,
+                    mabGUI.snapCoords(transition.destination.shape.getX()),
+                    mabGUI.snapCoords(transition.destination.shape.getY())
+
+                    ]);
+
+                transition.selectShape.position({
+                    x: mabGUI.snapCoords(((transition.source.shape.getX() + transition.destination.shape.getX()) / 2) + transition.offset),
+                    y: mabGUI.snapCoords((transition.source.shape.getY() + transition.destination.shape.getY()) / 2)
+                });
+
+            });
+
+    }
+
+    deletorPrompt( event, transition )
+    {
+
+        if( ( event.keyCode === 46 || event.keyCode === 8 ) &&
+              confirm('Are you sure you want to delete this transition?') )
+        {
+            transition.tooltip.destroy( );
+            mabGUI.assembly.selectedTransition = null;
+            deletor( transition );
+        }
+
+    }
+
+}
+
+/*
 // function that adds new transition obj and konva arrow
 function addNewTransition(component_obj, source_obj, dest_obj) {
 
-    // check max transition count
-    if(source_obj.transition_count >= max_transition_count) {
-        alert("Cant create more than " + max_transition_count + " transitions from " + source_obj.name);
-        return false;
-    }
-
-    // set transition offset
-    let num_occurences = pushTransitionDictionary(component_obj, source_obj, dest_obj);
-    var offset = setTransitionOffset(source_obj, dest_obj);
-    source_obj.offset = offset;
-
-    var transition_group = new Konva.Group({
-        name: 'transition_group'
-    });
-
-    var transition = new Konva.Line({
-        points: [source_obj.place_konva.getX(), source_obj.place_konva.getY(),
-               ((source_obj.place_konva.getX() + dest_obj.place_konva.getX()) / 2) + offset, ((source_obj.place_konva.getY() + dest_obj.place_konva.getY()) / 2),
-                 dest_obj.place_konva.getX(), dest_obj.place_konva.getY()],
-        stroke: 'black',
-        strokeWidth: 1,
-        name: 'transition',
-        tension: 1
-    });
-
-    var transition_selection_area = new Konva.Circle({
-        x: ((source_obj.place_konva.getX() + dest_obj.place_konva.getX()) / 2) + offset,
-        y: (source_obj.place_konva.getY() + dest_obj.place_konva.getY()) / 2,
-        radius: 10,
-        opacity: 0,
-        stroke: 'black',
-        fill: 'white',
-        strokeWidth: 0.5,
-        text: transition.name,
-        name: 'Transition'
-    });
-
-    var tooltip = new Konva.Text({
-        text: "",
-        fontFamily: "Calibri",
-        fontSize: 12,
-        padding: 5,
-        textFill: "white",
-        fill: "black",
-        alpha: 0.75,
-        visible: false
-    });
-
-    component_obj.tooltipLayer.add(tooltip);
-    stage.add(component_obj.tooltipLayer);
-
-    // create transition object
-    var transition_obj = new Transition('Transition', "Transition_" + generateNextIndex(component_obj.transition_list),
-                                        source_obj, dest_obj, "defaultFunction_" + generateNextIndex(component_obj.transition_list));
-    transition_obj.index = generateNextIndex(component_obj.transition_list);
-    transition_obj.offset = offset;
-    transition_obj.tran_group_konva = transition_group;
-    transition_obj.tran_select_konva = transition_selection_area;
-    transition_obj.transition_selection_area = transition_selection_area;
-    transition_obj.tran_konva = transition;
-    transition_obj.component_obj = component_obj;
-    component_obj.transition_list.push(transition_obj);
-
-    // add transition konva obj to component group
-    transition_group.add(transition);
-    transition_group.add(transition_selection_area);
-    source_obj.transition_outbound_list.push(transition_obj);
-    dest_obj.transition_inbound_list.push(transition_obj);
-    component_obj.component_group_konva.add(transition_group);
-
-    // intilize selection variables to null
-    selected_transition = null;
-
-    // event: left click on transition
-    transition_selection_area.on("click", function(e) {
-        // left clk on tran selection area
-        if (e.evt.button === 0){
-            // highlight the transition
-            transition.stroke('blue');
-            transition.strokeWidth(3);
-            transition.draw();
-            selected_transition = transition_obj;
-        }
-    });
-
-    // event: right-click on transition
-    transition_selection_area.on("click", function(e) {
-        if(e.evt.button === 2) {
-            // highlight the transition
-            transition.stroke('blue');
-            transition.strokeWidth(3);
-            transition.draw();
-            //open window for editing transition
-            console.log("Open window for editing transition details");
-            ipcRend.send("change_transition_details", {component: component_obj.name, transition: transition_obj.name, function: transition_obj.func});
-        }
-    });
-
-    // event: mouse enters transition selection
-    transition_selection_area.on('moveenter', function() {
-        stage.container().style.cursor = 'pointer';
-    });
-
-    // event: mouse moves over transition selection
-    transition_selection_area.on('mouseover', function() {
-        window.addEventListener('keydown', removeTransition);
-    });
-
-    // event: mouse moves over place
-    transition_selection_area.on('mousemove', function () {
-        var mousePos = stage.getPointerPosition();
-        tooltip.position({
-            x : mousePos.x + 10,
-            y : mousePos.y + 10
-        });
-        tooltip.text(component_obj.name + " - " + transition_obj.name);
-        tooltip.show();
-        component_obj.tooltipLayer.batchDraw();
-    });
-
-    // event: mouse moves out of transition selection
-    transition_selection_area.on('mouseout', function(){
-        stage.container().style.cursor = 'default';
-        transition.stroke('black');
-        transition.strokeWidth(1);
-        tooltip.hide();
-        component_obj.tooltipLayer.draw();
-        window.removeEventListener('keydown', removeTransition);
-    });
-
-    // event: source place is moved
-    source_obj.place_konva.on('dragmove', (e) => {
-        transition.setPoints([snapToGrid(source_obj.place_konva.getX()),
-                              snapToGrid(source_obj.place_konva.getY()),
-                              snapToGrid(((source_obj.place_konva.getX() + dest_obj.place_konva.getX()) / 2) + offset),
-                              snapToGrid(source_obj.place_konva.getY() + dest_obj.place_konva.getY()) / 2,
-                              snapToGrid(dest_obj.place_konva.getX()),
-                              snapToGrid(dest_obj.place_konva.getY())]);
-        transition_selection_area.position({
-            x: snapToGrid(((source_obj.place_konva.getX() + dest_obj.place_konva.getX()) / 2) + offset),
-            y: snapToGrid((source_obj.place_konva.getY() + dest_obj.place_konva.getY()) / 2)
-        });
-    });
-
-    // event: dest place is moved
-    dest_obj.place_konva.on('dragmove', (e) => {
-        transition.setPoints([snapToGrid(source_obj.place_konva.getX()),
-                              snapToGrid(source_obj.place_konva.getY()),
-                              snapToGrid(((source_obj.place_konva.getX() + dest_obj.place_konva.getX()) / 2) + offset),
-                              snapToGrid(source_obj.place_konva.getY() + dest_obj.place_konva.getY()) / 2,
-                              snapToGrid(dest_obj.place_konva.getX()),
-                              snapToGrid(dest_obj.place_konva.getY())]);
-        transition_selection_area.position({
-            x: snapToGrid(((source_obj.place_konva.getX() + dest_obj.place_konva.getX()) / 2) + offset),
-            y: snapToGrid((source_obj.place_konva.getY() + dest_obj.place_konva.getY()) / 2)
-        });
-    });
-
+    // @todo: move this to dependency.js?
+    // 
     // event: right click on use_selection_area
     component_obj.use_selection_area.on("click", function(e){
 
-        if(e.evt.button === 2 && selected_transition != null) {
+        if (e.evt.button === 2 && mabGUI.selectedTransition != null) {
 
-            selected_transition.dependency = true;
+            mabGUI.selectedTransition.dependency = true;
 
-            var type = ipcRend.sendSync("set_dependency_type");
+            var type = ipcRenderer.sendSync("set_dependency_type");
 
             if(type == 'service') {
-                selected_transition.dependency_type = 'USE'
+                mabGUI.selectedTransition.dependency_type = 'USE'
             } else if (type == 'data') {
-                selected_transition.dependency_type = 'DATA_USE'
+                mabGUI.selectedTransition.dependency_type = 'DATA_USE'
             }
 
-            createDependencyUsePort(component_obj, selected_transition);
+            createDependencyUsePort(component_obj, mabGUI.selectedTransition);
 
             // reset the source obj and konva pointers to null
-            selected_transition = null;
+            mabGUI.selectedTransition = null;
 
         }
 
     });
 
+    // @todo: move this to dependency.js?
+    //
     // event: mouse goes over use_selection_area
     component_obj.use_selection_area.on("mouseover", function() {
 
@@ -195,6 +298,9 @@ function addNewTransition(component_obj, source_obj, dest_obj) {
 
     });
 
+
+    // @todo: move this to dependency.js?
+    //
     // event: mouse leaves use_selection_area
     component_obj.use_selection_area.on("mouseout", function() {
 
@@ -206,44 +312,11 @@ function addNewTransition(component_obj, source_obj, dest_obj) {
 
     });
 
-    function removeTransition(ev){
-
-        // keyCode Delete key
-        if (ev.keyCode === 46 || ev.keyCode == 8) {
-            if (confirm('Are you sure you want to delete this Transition?')){
-                // Delete it!
-                tooltip.destroy();
-                selected_transition = null;
-                // remove the transition obj from its components transition list
-                deletor(transition_obj);
-            } else {
-                // Do nothing!
-                return;
-            }
-        }
-
     }
+} */
 
-    function generateNextIndex(transition_list) {
-
-        if (transition_list.length == 0){
-            return 1;
-        } else {
-            return transition_list[transition_list.length - 1].index + 1;
-        }
-
-    }
-
-    // move source and dest places above the transition
-    source_obj.place_konva.moveToTop();
-    dest_obj.place_konva.moveToTop();
-    source_obj.transition_count++;
-    layer.batchDraw();
-
-    return transition_obj;
-
-}
-
+// @todo: move this to dependency.js?
+//
 // function to create a use port out of a transition
 function createDependencyUsePort(component_obj, transition_obj){
 
@@ -281,29 +354,8 @@ function createDependencyUsePort(component_obj, transition_obj){
 
 };
 
-// set Transition dictionary value
-function pushTransitionDictionary(source_component, source_obj, dest_obj) {
-
-    let src = source_obj.name;
-    let dest = dest_obj.name;
-
-    // check if this source -> dest combo has been added prior
-    if(source_component.transition_dictionary[src] && source_component.transition_dictionary[src][dest]) {
-        source_component.transition_dictionary[src][dest]++;
-    } else {
-        source_component.transition_dictionary[src] = {};
-        source_component.transition_dictionary[src][dest] = 1;
-    }
-
-    source_obj.offset = source_component.transition_dictionary[src][dest];
-
-    let count = source_component.transition_dictionary[src][dest]
-    return count;
-
-}
-
 // Catch new transition details from ipcMain
-ipcRend.on("transition->renderer", function(event, args) {
+ipcRenderer.on("transition->renderer", function(event, args) {
 
     if (args.new_func != '') {
         changeTransitionFunc(args.component, args.old_func, args.new_func);
