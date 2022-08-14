@@ -419,4 +419,6 @@ class Component
 
     }
 
+}
+
 module.export = Component;
