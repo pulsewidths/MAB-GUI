@@ -6,11 +6,14 @@ class Component
 
         this.type = 'component';
         this.name = name;
-        this.index = mabGUI.assembly.componentList.length;
+        this.index = mabGUI.assembly.components.length;
 
+        this.connections = [ ]; // @todo: ?
         this.places = [ ];
         this.transitions = [ ];
         this.dependencies = [ ];
+
+        mabGUI.assembly.components.push( this );
 
         this.initKonva( pos );
         this.initTooltip( );
@@ -82,6 +85,8 @@ class Component
     initLeftClickListeners( )
     {
 
+        let component = this;
+
         // single-click on stage.
         // @todo: should this be somewhere else...?
         mabGUI.stage.on( 'click',
@@ -90,6 +95,10 @@ class Component
 
                 if( event.evt.button === 0 )
                 {
+                    if( !event.target.hasName( 'place' ) )
+                    {
+                        mabGUI.deselectPlace( );
+                    }
                     // if clicking on empty area...
                     if( event.target === mabGUI.stage )
                     {
@@ -97,6 +106,7 @@ class Component
                         mabGUI.layer.draw( );
                         return;
                     }
+                    // @todo: should this be somewhere else? 
                     // if clicking on a component...
                     if ( event.target.hasName( 'component' ) )
                     {
@@ -116,9 +126,6 @@ class Component
 
         );
 
-        // weirdness from js's anonymous scoping
-        var component = this;
-
         // double-click in component.
         this.shape.on( 'dblclick',
             function( event )
@@ -135,8 +142,6 @@ class Component
                     var placePos = transform.point( pos );
 
                     component.addPlace( placePos );
-
-                    mabGUI.layer.draw( );
 
                 }
             } );
@@ -171,7 +176,8 @@ class Component
     initMovementListeners( )
     {
 
-        var component = this;
+        let component = this;
+        let remove = component.remove.bind( this );
 
         this.shape.on( 'xChange yChange',
             function( )
@@ -203,7 +209,6 @@ class Component
                     { x: mabGUI.snapCoords( component.group.x( ) ),
                       y: mabGUI.snapCoords( component.group.y( ) ) }
                 );
-                mabGUI.layer.batchDraw( );
             } );
 
         this.shape.on( 'mousemove',
@@ -213,13 +218,12 @@ class Component
                 component.tooltip.position( { x: mousePos.x + 10, y: mousePos.y + 10 } );
                 component.tooltip.text( component.name );
                 component.tooltip.show( );
-                component.tooltipLayer.batchDraw( );
             } );
 
         this.shape.on( 'mouseover',
             function( )
             {
-                window.addEventListener( 'keydown', component.deletorPrompt );
+                window.addEventListener( 'keydown', remove );
             } );
 
         this.shape.on( 'mouseout',
@@ -229,7 +233,7 @@ class Component
                 component.shape.strokeWidth( 1 );
                 component.tooltip.hide( );
                 component.tooltipLayer.draw( );
-                window.removeEventListener( 'keydown', component.deletorPrompt );
+                window.removeEventListener( 'keydown', remove );
             });
 
     }
@@ -250,7 +254,7 @@ class Component
 
         let name = 'Place_' + (this.places.length + 1 );
         let place = new Place( name, this, pos );
-        this.places.push( place );
+        mabGUI.deselectPlace( );
         mabGUI.layer.draw( );
 
     }
@@ -258,7 +262,8 @@ class Component
     addTransition( source, destination )
     {
 
-        const MAX_TRANSITIONS = 3;
+        const MAX_TRANSITIONS = 5;
+
 
         if( this.validTransition( source, destination ) )
         {
@@ -268,82 +273,70 @@ class Component
 
             let transition = new Transition( name, source, destination, func );
 
-            this.transitions.push( transition );
-            source.transitions.out.push( transition );
-            destination.transitions.in.push( transition );
-
-            mabGUI.layer.draw( );
-
         } else {
-            alert('Can\'t create more than ' + MAX_TRANSITIONS + ' transitions.');
+            alert('Can\'t create more than ' + MAX_TRANSITIONS + ' transitions, or create a cycle.');
         }
 
         mabGUI.stage.container( ).style.cursor = 'default';
-        mabGUI.assembly.deselectPlace( );
+        mabGUI.deselectPlace( );
+        destination.shape.stroke( 'black' );
+        destination.shape.strokeWidth( 1 );
+        mabGUI.stage.batchDraw( );
+
     }
 
     // @todo: should this possibly be in Assembly?
     validTransition( source, destination )
     {
 
+        const MAX_TRANSITIONS = 5;
+
         let name = 'Transition_' + this.transitions.length;
         let func = 'defaultFunction' + this.transitions.length;
 
         let transition = new Transition( name, source, destination, func );
 
-        this.transitions.push( transition );
-        source.transitions.out.push( transition );
-        destination.transitions.in.push(transition );
-
-        const MAX_TRANSITIONS = 3;
-
         if ( source.transitions.out.length > MAX_TRANSITIONS ||
             destination.transitions.in.length > MAX_TRANSITIONS )
         {
-            this.transitions.pop( );
-            source.transitions.out.pop( );
-            destination.transitions.in.pop( );
+            transition.remove( );
             return false;
         }
 
         if ( source.component != destination.component || source == destination )
         {
-            this.transitions.pop( );
-            source.transitions.out.pop( );
-            destination.transitions.in.pop( );
+            transition.remove( );
             return false;
         }
         if (source.component.transitions.length == 0 )
         {
-            this.transitions.pop( );
-            source.transitions.out.pop( );
-            destination.transitions.in.pop( );
+            transition.remove( );
             return true;
         }
 
         let roots = source.component.getRoots( );
 
+        if( roots.length == 0 )
+        {
+            transition.remove( );
+            return false;
+        }
+
         for( let rootIndex = 0; rootIndex < roots.length; rootIndex++ )
         {
             let root = roots[ rootIndex ];
-
-            console.log( roots );
 
             let valid = !this.isCyclic( root );
 
             if( !valid )
             {
-                this.transitions.pop( );
-                source.transitions.out.pop( );
-                destination.transitions.in.pop( );
+                transition.remove( );
                 return false;
             }
 
         }
 
-        this.transitions.pop( );
-        source.transitions.out.pop( );
-        destination.transitions.in.pop( );
+        transition.remove( );
 
         return true;
 
@@ -396,18 +389,34 @@ class Component
 
     }
 
-    deletorPrompt( event, component )
+    remove( event )
     {
 
-        if( ( event.keyCode === 46 || event.keyCode === 8 ) &&
-              confirm( 'Deleting this component will remove everything inside of it - are you sure?' ) );
+        if( event != null )
         {
-            component.tooltip.destroy( );
-            deletor( this );
+
+            if( !( event.keyCode == 46 || event.keyCode == 8 ) )
+            {
+                return;
+            }
+            
+            if( !confirm( 'Are you sure you want to delete this Component?' ) )
+            {
+                return;
+            }
+
         }
 
-    }
+        while( this.connections.length != 0 )
+        {
+            this.connections[ 0 ].remove( );
+        }
 
-}
+        let index = mabGUI.assembly.components.indexOf( this );
+        mabGUI.assembly.component.splice( index, 1 );
+
+        this.shape.group.destroy( );
+
+    }
 
 module.export = Component;
