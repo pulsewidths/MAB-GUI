@@ -14,6 +14,8 @@ class Place
         this.transitions = { in: [ ], out: [ ] }; // { in: [ ], out: [ ] }
         this.dependencies = [ ];
 
+        this.component.places.push( this );
+
         this.initKonva( pos );
         this.initTooltip( );
         this.initListeners( );
@@ -94,14 +96,14 @@ class Place
                 if( event.evt.button === 0 )
                 {
 
-                    if( mabGUI.assembly.selectedPlace == place )
+                    if( mabGUI.selectedPlace == place )
                     {
-                        mabGUI.assembly.deselectPlace( );
+                        mabGUI.deselectPlace( );
                         return;
                     }
 
-                    mabGUI.assembly.deselectPlace( );
-                    mabGUI.assembly.selectPlace( place );
+                    mabGUI.deselectPlace( );
+                    mabGUI.selectPlace( place );
 
                 }
             } );
@@ -119,7 +121,7 @@ class Place
             function( event )
             {
 
-                if( event.evt.button === 2 && mabGUI.assembly.selectedPlace == null )
+                if( event.evt.button === 2 && mabGUI.selectedPlace == null )
                 {
 
                     place.shape.stroke( 'blue' );
@@ -136,10 +138,10 @@ class Place
             this.shape.on( 'click',
                 function( event )
                 {
-                    if( event.evt.button === 2 && mabGUI.assembly.selectedPlace != null )
+                    if( event.evt.button === 2 && mabGUI.selectedPlace != null )
                     {
 
-                        component.addTransition( mabGUI.assembly.selectedPlace, place );
+                        component.addTransition( mabGUI.selectedPlace, place );
 
                     }
                 } );
@@ -150,6 +152,7 @@ class Place
     {
 
         let place = this;
+        let remove = place.remove.bind( this );
 
         this.shape.on( 'dragend',
             function( event )
@@ -159,6 +162,7 @@ class Place
                         x: mabGUI.snapCoords( place.shape.x( ) ),
                         y: mabGUI.snapCoords( place.shape.y( ) )
                     } );
+                place.tooltip.show( );
                 mabGUI.layer.batchDraw( );
             } );
 
@@ -189,9 +193,9 @@ class Place
             {
                 mabGUI.stage.container( ).style.cursor = 'pointer';
 
-                if( mabGUI.assembly.selectedPlace != null )
+                if( mabGUI.selectedPlace != null )
                 {
-                    if( place.component.validTransition( mabGUI.assembly.selectedPlace, place ) )
+                    if( place.component.validTransition( mabGUI.selectedPlace, place ) )
                     {
                         place.shape.stroke( 'green' );
                         place.shape.strokeWidth( 3 );
@@ -203,7 +207,7 @@ class Place
                     }
                 }
 
-                window.addEventListener( 'keydown', place.removePlace );
+                window.addEventListener( 'keydown', remove );
             } );
 
         this.shape.on( 'mouseleave',
@@ -211,13 +215,15 @@ class Place
             {
                 mabGUI.stage.container( ).style.cursor = 'default';
 
-                if( mabGUI.assembly.selectedPlace != place )
+                if( mabGUI.selectedPlace != place )
                 {
                     place.shape.stroke( 'black' );
                     place.shape.strokeWidth( 1 );
-                    mabGUI.layer.batchDraw( );
+                    mabGUI.stage.batchDraw( );
                 } else {
-                    mabGUI.assembly.selectPlace( mabGUI.assembly.selectedPlace );
+                    place.shape.stroke( 'blue' );
+                    place.shape.strokeWidth( 5 );
+                    mabGUI.stage.batchDraw( );
                 }
             } );
 
@@ -226,22 +232,49 @@ class Place
             {
                 place.tooltip.hide( );
                 place.component.tooltipLayer.draw( )
-                window.removeEventListener( 'keydown', place.removePlace );
+                window.removeEventListener( 'keydown', remove );
             } );
 
     }
 
-    deletorPrompt( event, place )
+    remove( event )
     {
 
-        // del = 46
-        if( ( event.keyCode === 46 || event.keyCode == 8 ) &&
-            confirm( 'Are you sure you want to delete this Place?' ) )
+        if( event != null )
         {
-            place.tooltip.destroy();
-            mabGUI.assembly.selectedPlace = null;
-            deletor( component );
+
+            if( !( event.keyCode == 46 || event.keyCode == 8 ) )
+            {
+                return;
+            }
+            
+            if( !confirm( 'Are you sure you want to delete this Place?' ) )
+            {
+                return;
+            }
+
         }
+
+        this.tooltip.destroy( );
+        mabGUI.selectedPlace = null;
+
+        while( this.dependencies.length != 0 )
+        {
+            this.dependencies[ 0 ].remove( );
+        }
+        while( this.transitions.in.length != 0 )
+        {
+            this.transitions.in[ 0 ].remove( ); 
+        }
+        while( this.transitions.out.length != 0 )
+        {
+            this.transitions.out[ 0 ].remove( ); 
+        }
+
+        let index = this.component.places.indexOf( this );
+        this.component.places.splice( index, 1 );
+
+        this.shape.destroy( );
 
     }
 

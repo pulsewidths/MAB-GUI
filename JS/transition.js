@@ -18,6 +18,10 @@ class Transition
         this.duration_min = 1;
         this.duration_max = 2;
 
+        this.component.transitions.push( this );    
+        this.source.transitions.out.push( this );
+        this.destination.transitions.in.push( this );
+
         this.initOffset( );
 
         this.initKonva( );
@@ -36,7 +40,8 @@ class Transition
         this.shape = new Konva.Line( {
             points: [ this.source.shape.getX( ), this.source.shape.getY( ),
                       ( ( this.source.shape.getX( ) + this.destination.shape.getX( ) ) / 2 ) + this.offset,
-                      this.destination.shape.getX( ), this.destination.shape.getY( ) ],
+                      ( ( this.source.shape.getY( ) + this.destination.shape.getY( ) ) / 2 ),
+                          this.destination.shape.getX( ), this.destination.shape.getY( ) ],
             stroke: 'black', strokeWidth: 1,
             name: 'transition', tension: 1
         } );
@@ -56,8 +61,6 @@ class Transition
         this.group.add( this.selectShape );
         this.component.group.add( this.group );
 
-        mabGUI.layer.batchDraw( );
-
     }
 
     initTooltip( )
@@ -70,7 +73,6 @@ class Transition
         } );
 
         this.component.tooltipLayer.add( this.tooltip );
-        mabGUI.stage.add( this.component.tooltipLayer );
 
     }
 
@@ -121,7 +123,7 @@ class Transition
                     transition.shape.stroke( 'blue' );
                     transition.shape.strokeWidth( 3 );
                     transition.shape.draw( );
-                    mabGUI.assembly.selectedTransition = transition;
+                    mabGUI.selectedTransition = transition;
                 }
 
             } );
@@ -154,21 +156,13 @@ class Transition
     {
 
         let transition = this;
+        let remove = transition.remove.bind( transition );
 
-        this.selectShape.on( 'moveenter',
+        this.selectShape.on( 'mouseenter',
             function( )
             {
-
                 mabGUI.stage.container( ).style.cursor = 'pointer';
-
-            } );
-
-        this.selectShape.on( 'mouseover',
-            function( )
-            {
-
-                window.addEventListener( 'keydown', transition.deletorPrompt );
-
+                window.addEventListener( 'keydown', remove );
             } );
 
         this.selectShape.on( 'mousemove',
@@ -192,7 +186,7 @@ class Transition
                 transition.shape.strokeWidth( 1 );
                 transition.tooltip.hide( );
                 transition.component.tooltipLayer.draw( );
-                window.removeEventListener( 'keydown', transition.deletorPrompt );
+                window.removeEventListener( 'keydown', remove );
 
             } );
 
@@ -215,40 +209,75 @@ class Transition
                     y: mabGUI.snapCoords( ( transition.source.shape.getY( ) + transition.destination.shape.getY( ) ) / 2 )
                 } );
 
-            });
+            } );
 
         this.destination.shape.on('dragmove',
-            function () {
+            function( )
+            {
 
                 transition.shape.setPoints(
-                    [mabGUI.snapCoords(transition.source.shape.getX()),
-                    mabGUI.snapCoords(transition.source.shape.getY()),
-                    mabGUI.snapCoords(((transition.source.shape.getX() + transition.destination.shape.getX()) / 2) + transition.offset),
-                    mabGUI.snapCoords(transition.source.shape.getY() + transition.destination.shape.getY()) / 2,
-                    mabGUI.snapCoords(transition.destination.shape.getX()),
-                    mabGUI.snapCoords(transition.destination.shape.getY())
+                    [ mabGUI.snapCoords( transition.source.shape.getX( ) ),
+                      mabGUI.snapCoords( transition.source.shape.getY( ) ),
+                      mabGUI.snapCoords( ( ( transition.source.shape.getX( ) + transition.destination.shape.getX( ) ) / 2) + transition.offset ),
+                      mabGUI.snapCoords( transition.source.shape.getY( ) + transition.destination.shape.getY( ) ) / 2,
+                      mabGUI.snapCoords( transition.destination.shape.getX( ) ),
+                      mabGUI.snapCoords( transition.destination.shape.getY( ) )
 
-                    ]);
+                    ] );
 
-                transition.selectShape.position({
-                    x: mabGUI.snapCoords(((transition.source.shape.getX() + transition.destination.shape.getX()) / 2) + transition.offset),
-                    y: mabGUI.snapCoords((transition.source.shape.getY() + transition.destination.shape.getY()) / 2)
-                });
+                transition.selectShape.position(
+                    { x: mabGUI.snapCoords( ( ( transition.source.shape.getX( ) + transition.destination.shape.getX( ) ) / 2 ) + transition.offset ),
+                      y: mabGUI.snapCoords( ( transition.source.shape.getY( ) + transition.destination.shape.getY( ) ) / 2 )
+                } );
 
-            });
+            } );
 
     }
 
-    deletorPrompt( event, transition )
+    remove( event )
     {
-
-        if( ( event.keyCode === 46 || event.keyCode === 8 ) &&
-              confirm('Are you sure you want to delete this transition?') )
+        if( event != null )
         {
-            transition.tooltip.destroy( );
-            mabGUI.assembly.selectedTransition = null;
-            deletor( transition );
+
+            if( !( event.keyCode == 46 || event.keyCode == 8 ) )
+            {
+                return;
+            }
+            
+            if( !confirm( 'Are you sure you want to delete this Transition?' ) )
+            {
+                return;
+            }
+
         }
+
+        mabGUI.selectedTransition = null;
+        
+        while( this.dependencies.length != 0 )
+        {
+            // @todo: make this function in dependency.js
+            this.dependencies[ 0 ].remove( ); 
+        }
+
+        // removing from source place
+        let index = this.source.transitions.out.indexOf( this );
+        this.source.transitions.out.splice( index, 1 );
+        // removing from destination place
+        index = this.destination.transitions.in.indexOf( this );
+        this.destination.transitions.in.splice( index, 1 );
+        // removing from component
+        index = this.component.transitions.indexOf( this );
+        this.component.transitions.splice( index, 1 );
+
+        this.tooltip.destroy( );
+        this.shape.destroy( );
+        this.selectShape.destroy( );
+        this.group.destroy( );
+
+        let remove = this.remove.bind( this );
+        window.removeEventListener( 'keydown', remove );
+
+        mabGUI.stage.batchDraw( );
 
     }
 
