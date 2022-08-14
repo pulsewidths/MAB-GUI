@@ -20,8 +20,8 @@ ipcRenderer.on('generate_code', function() {
 function createComponentString(component) {
     var content = "";
     //Append to content
-	content += "from mad import *\n";
-	content += "import time\n\n";
+    content += "from mad import *\n";
+    content += "import time\n\n";
     content += "class " + capitalize(component.name) + "(Component):\n";
 
     //Create places list
