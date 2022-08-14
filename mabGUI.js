@@ -15,6 +15,9 @@ class MabGUI
         this.initStage( );
         this.initListeners( );
 
+        this.selectedPlace = null;
+        this.selectedTransition = null;
+
     }
 
     initStage( )
@@ -55,11 +58,6 @@ class MabGUI
             } );
     }
 
-    addComponent( pos )
-    {
-        this.assembly.addComponent( pos );
-    }
-
     snapCoords( pos )
     {
 
@@ -68,51 +66,13 @@ class MabGUI
         return Math.round( pos / snapIncrement ) * snapIncrement;
 
     }
-    
-}
-
-class Assembly
-{
-
-    constructor( )
-    {
-
-        this.componentList = [ ];
-
-        this.selectedPlace = null;
-        this.selectedTransition = null;
-
-    }
-
-    addComponent( pos )
-    {
-
-        let name = 'Component_' + this.componentList.length + 1;
-        let component = new Component( name, pos );
-
-        this.componentList.push( component );
-        mabGUI.layer.draw( );
-
-    }
-
-    getComponent( name )
-    {
-        
-        for( let index = 0; index < this.componentList.length; index++ )
-        {
-            if( this.componentList[ index ].name == name )
-            {
-                return this.componentList[ index ];
-            }
-        }
-    }
 
     selectPlace( place )
     {
         this.selectedPlace = place;
         this.selectedPlace.shape.stroke( 'blue' );
         this.selectedPlace.shape.strokeWidth( 5 );
-        this.selectedPlace.shape.draw( );
+        this.stage.batchDraw( );
     }
 
     deselectPlace( )
@@ -125,9 +85,41 @@ class Assembly
         this.selectedPlace.shape.stroke( 'black' );
         this.selectedPlace.shape.strokeWidth( 1 );
         this.selectedPlace = null;
-        mabGUI.layer.batchDraw( );
+        this.stage.batchDraw( );
+
+    }
+    
+}
+
+class Assembly
+{
+
+    constructor( )
+    {
+
+        this.components = [ ];
 
     }
 
+    addComponent( pos )
+    {
+
+        let name = 'Component_' + this.components.length + 1;
+        let component = new Component( name, pos );
+        mabGUI.layer.draw( );
+
+    }
+
+    getComponent( name )
+    {
+        
+        for( let index = 0; index < this.components.length; index++ )
+        {
+            if( this.components[ index ].name == name )
+            {
+                return this.components[ index ];
+            }
+        }
+    }
 
 }
