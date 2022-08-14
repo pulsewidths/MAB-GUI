@@ -6,12 +6,9 @@ const path = require('path');
 const ipcRenderer = require('electron').ipcRenderer;
 const remote = require('electron').remote;
 
-var componentList = [];
 var connectionList = [];
 
 var blockSnapSize = 10;
-
-var selectedPlace = null;
 
 var sourceTransition = null;
 var destTransition = null;
