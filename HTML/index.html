@@ -2,18 +2,18 @@
 
 <html>
 
-	<head>
+    <head>
 
-		<meta name="MAB" content="width=device-width, initial-scale=1" charset="utf-8">
+        <meta name="MAB" content="width=device-width, initial-scale=1" charset="utf-8">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
         <link rel="stylesheet" href="../CSS/style.css">
 
-		<script src="https://unpkg.com/konva@2.4.2/konva.min.js"></script>
+        <script src="https://unpkg.com/konva@2.4.2/konva.min.js"></script>
         <script src="https://rawgit.com/konvajs/greensock-plugin/master/KonvaPlugin.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/2.1.2/TweenMax.min.js"></script>
 
-		<script src="../mabGUI.js"></script>
-		<script src="../JS/component.js"></script>
+        <script src="../mabGUI.js"></script>
+        <script src="../JS/component.js"></script>
 
         <script src="../JS/place.js"></script>
         <script src="../JS/transition.js"></script>
@@ -21,52 +21,52 @@
         <script src="../JS/connection.js"></script>
         <script src="../JS/deletion.js"></script>
 
-		<script>
+        <script>
 
-			var mabGUI = null;
+            var mabGUI = null;
 
-			function allowDrop( event )
-			{
-				event.preventDefault( );
-			}
+            function allowDrop( event )
+            {
+                event.preventDefault( );
+            }
 
-			function initCanvas( )
-			{
+            function initCanvas( )
+            {
 
-				mabGUI = new MabGUI( );
+                mabGUI = new MabGUI( );
 
-				document.getElementById( 'canvas' ).addEventListener( 'drop',
-				    function( event )
-					{
-				        let posX = event.pageX - 150;
-						let posY = event.pageY - 175;
-						mabGUI.addComponent( { x: posX, y: posY } );
-					} );
+                document.getElementById( 'canvas' ).addEventListener( 'drop',
+                    function( event )
+                    {
+                        let posX = event.pageX - 150;
+                        let posY = event.pageY - 175;
+                        mabGUI.assembly.addComponent( { x: posX, y: posY } );
+                    } );
 
-			}
+            }
 
-		</script>
+        </script>
 
-	</head>
+    </head>
 
-	<body>
+    <body>
 
-		<div id="canvas" class="main" ondragover="allowDrop( event )" >
+        <div id="canvas" class="main" ondragover="allowDrop( event )" >
 
-			<script>initCanvas( );</script>
-	
-			<div class="toolbox">
-	
-				<div id="component" class="component" draggable="true">
-					<svg width="100" height="100">
-						<rect x="10" y="10" width="80" height="80" stroke="black" stroke-width="2" fill-opacity="0" draggable="true" />
-					</svg>
-				</div>
-	
-			</div>
+            <script>initCanvas( );</script>
+    
+            <div class="toolbox">
+    
+                <div id="component" class="component" draggable="true">
+                    <svg width="100" height="100">
+                        <rect x="10" y="10" width="80" height="80" stroke="black" stroke-width="2" fill-opacity="0" draggable="true" />
+                    </svg>
+                </div>
+    
+            </div>
 
-		</div>
+        </div>
 
-	</body>
+    </body>
 
 </html>
