@@ -8,16 +8,16 @@ class Component
         this.name = name;
         this.index = mabGUI.assembly.components.length;
 
-        this.connections = [ ]; // @todo: ?
+        this.connections = { provide: [ ], use: [ ] };
         this.places = [ ];
         this.transitions = [ ];
         this.dependencies = [ ];
 
-        mabGUI.assembly.components.push( this );
-
         this.initKonva( pos );
         this.initTooltip( );
         this.initListeners( );
+
+        mabGUI.assembly.components.push( this );
 
     }
 
@@ -52,7 +52,6 @@ class Component
         this.group.add( this.provideSelectionArea );
 
         mabGUI.layer.add( this.group );
-        mabGUI.layer.draw( );
 
     }
 
@@ -95,13 +94,10 @@ class Component
 
                 if( event.evt.button === 0 )
                 {
-                    if( !event.target.hasName( 'place' ) )
-                    {
-                        mabGUI.deselectPlace( );
-                    }
                     // if clicking on empty area...
                     if( event.target === mabGUI.stage )
                     {
+                        mabGUI.deselectAll( );
                         mabGUI.stage.find( 'Transformer' ).destroy( ); // deselect
                         mabGUI.layer.draw( );
                         return;
@@ -206,8 +202,8 @@ class Component
             function( )
             {
                 component.group.position(
-                    { x: mabGUI.snapCoords( component.group.x( ) ),
-                      y: mabGUI.snapCoords( component.group.y( ) ) }
+                    { x: MabGUI.snapCoords( component.group.x( ) ),
+                      y: MabGUI.snapCoords( component.group.y( ) ) }
                 );
             } );
 
@@ -252,10 +248,24 @@ class Component
     addPlace( pos )
     {
 
-        let name = 'Place_' + (this.places.length + 1 );
+        let name = 'Place_' + ( this.places.length + 1 );
         let place = new Place( name, this, pos );
         mabGUI.deselectPlace( );
-        mabGUI.layer.draw( );
+        mabGUI.stage.batchDraw( );
+
+    }
+
+    addDependency( source )
+    {
+
+        let serviceData = 'service'; // @todo: placeholder; prompt with IPC
+
+        let dependency = new Dependency( source, serviceData );
+
+        mabGUI.deselectTransition( );
+        mabGUI.deselectPlace( );
+
+        mabGUI.stage.batchDraw( );
 
     }
 
@@ -407,9 +417,13 @@ class Component
 
         }
 
-        while( this.connections.length != 0 )
+        while( this.connections.provide.length != 0 )
         {
-            this.connections[ 0 ].remove( );
+            this.connections.provide[ 0 ].remove( );
+        }
+        while( this.connections.use.length != 0 )
+        {
+            this.connections.use[ 0 ].remove( );
         }
 
         let index = mabGUI.assembly.components.indexOf( this );
