@@ -14,11 +14,11 @@ class Place
         this.transitions = { in: [ ], out: [ ] }; // { in: [ ], out: [ ] }
         this.dependencies = [ ];
 
-        this.component.places.push( this );
-
         this.initKonva( pos );
         this.initTooltip( );
         this.initListeners( );
+
+        this.component.places.push( this );
 
     }
 
@@ -114,7 +114,6 @@ class Place
     {
         
         let place = this;
-        let component = this.component;
 
         // rmb, no prior selection
         this.shape.on( 'click',
@@ -128,7 +127,7 @@ class Place
                     place.shape.strokeWidth( 3 );
                     place.shape.draw( );
 
-                    ipcRenderer.send( 'changePlaceName-createwindow', component.name, place.name );
+                    ipcRenderer.send( 'changePlaceName-createwindow', place.component.name, place.name );
                     
                 }
 
@@ -141,8 +140,17 @@ class Place
                     if( event.evt.button === 2 && mabGUI.selectedPlace != null )
                     {
 
-                        component.addTransition( mabGUI.selectedPlace, place );
+                        place.component.addTransition( mabGUI.selectedPlace, place );
 
+                    }
+                } );
+
+            this.component.provideSelectionArea.on( 'click',
+                function( event )
+                {
+                    if( event.evt.button == 2 && mabGUI.selectedPlace != null )
+                    {
+                        place.component.addDependency( mabGUI.selectedPlace );
                     }
                 } );
 
@@ -159,8 +167,8 @@ class Place
             {
                 place.shape.position(
                     {
-                        x: mabGUI.snapCoords( place.shape.x( ) ),
-                        y: mabGUI.snapCoords( place.shape.y( ) )
+                        x: MabGUI.snapCoords( place.shape.x( ) ),
+                        y: MabGUI.snapCoords( place.shape.y( ) )
                     } );
                 place.tooltip.show( );
                 mabGUI.layer.batchDraw( );
@@ -230,9 +238,33 @@ class Place
         this.shape.on( 'mouseout',
             function( )
             {
+
                 place.tooltip.hide( );
                 place.component.tooltipLayer.draw( )
+
                 window.removeEventListener( 'keydown', remove );
+
+            } );
+
+        this.component.provideSelectionArea.on( 'mouseover',
+            function( )
+            {
+                if( mabGUI.selectedPlace != null )
+                {
+                    place.component.provideSelectionArea.fill( 'green' );
+                    place.component.provideSelectionArea.opacity( 1 );
+                    mabGUI.stage.batchDraw( );
+                }
+            } );
+
+        this.component.provideSelectionArea.on( 'mouseout',
+            function( )
+            {
+                if( place.component.provideSelectionArea.opacity( ) == 1 )
+                {
+                    place.component.provideSelectionArea.opacity( 0 );
+                    mabGUI.stage.batchDraw( );
+                }
             } );
 
     }
@@ -279,110 +311,3 @@ class Place
     }
 
 }
-
-// Add new place function, should only be called by component
-function addNewPlace( parentComponent, position ) {
-
-    // @todo: move this to dependency.js?
-    //
-    // event: provide selection area right-click
-    component_obj.provide_selection_area.on("click", function(e) {
-
-        if(e.evt.button === 2 && selected_source != null) {
-
-            selected_source.dependency = true;
-
-            var type = ipcRenderer.sendSync("set_dependency_type");
-
-            if(type == 'service') {
-                selected_source.dependency_type = 'PROVIDE'
-            } else if(type == 'data') {
-                selected_source.dependency_type = 'DATA_PROVIDE'
-            }
-
-            createDependencyPort(selected_source_comp, selected_source);
-
-            selected_source.place_konva.stroke('black');
-            selected_source.place_konva.strokeWidth(1);
-            selected_source = null;
-            selected_source_comp = null;
-            layer.batchDraw();
-
-        }
-
-    });
-
-    // @todo: move this to dependency.js?
-    //
-    // event: provide selection area mouse over
-    component_obj.provide_selection_area.on("mouseover", function() {
-
-        // if source konva has been selected show green provide selection area on mouse enter
-        if(selected_source != null) {
-
-            component_obj.provide_selection_area.fill('green');
-            component_obj.provide_selection_area.opacity(1);
-            layer.batchDraw();
-
-        }
-
-    });
-
-    // @todo: move this to dependency.js?
-    //
-    // event: provide selection area mouse out
-    component_obj.provide_selection_area.on("mouseout", function() {
-
-        // if provide selection area was visible, hide it!
-        if(component_obj.provide_selection_area.opacity() === 1) {
-
-            component_obj.provide_selection_area.opacity(0);
-            layer.batchDraw();
-
-        }
-
-    });
-
-};
-
-    // @todo: move this to dependency.js?
-    //
-function createDependencyPort(component_obj, place_obj) {
-
-    var component = component_obj.konva_component;
-    var component_group = component_obj.component_group_konva;
-    var place = place_obj.place_konva;
-    var tooltipLayer = component_obj.tooltipLayer;
-
-    // create dependency here if set true
-    if(place_obj.dependency) {
-
-        // determine which type of dependency
-        switch(place_obj.dependency_type) {
-
-            case 'PROVIDE':
-                // Creating service provide dependency
-                dependency_obj = addNewServiceDependency(component, place, place_obj, component_obj, component_group, tooltipLayer);
-                place_obj.dependency_konva_list.push(dependency_obj.dep_group_konva);
-                break;
-
-            case 'DATA_PROVIDE':
-                // Creating service provide dependency
-                dependency_obj = addNewDataDependency(component, place, place_obj, component_obj, component_group, tooltipLayer);
-                place_obj.dependency_konva_list.push(dependency_obj.dep_group_konva);
-                break;
-
-            case '':
-                alert("Dependency type has not been specified");
-                break;
-
-            default:
-                // invalid dependency type
-                alert("Invalid dependency type: " + place_obj.dependency_type);
-
-        }
-
-        return dependency_obj;
-    }
-
-};

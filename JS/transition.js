@@ -18,15 +18,15 @@ class Transition
         this.duration_min = 1;
         this.duration_max = 2;
 
-        this.component.transitions.push( this );    
-        this.source.transitions.out.push( this );
-        this.destination.transitions.in.push( this );
-
         this.initOffset( );
 
         this.initKonva( );
         this.initTooltip( );
         this.initListeners( );
+
+        this.component.transitions.push( this );    
+        this.source.transitions.out.push( this );
+        this.destination.transitions.in.push( this );
 
     }
 
@@ -49,7 +49,7 @@ class Transition
         this.selectShape = new Konva.Circle( {
             x: ( ( this.source.shape.getX( ) + this.destination.shape.getX( ) ) / 2 ) + this.offset,
             y: ( this.source.shape.getY( ) + this.destination.shape.getY( ) ) / 2,
-            name: 'Transition', text: this.name,
+            name: 'transition', text: this.name,
             stroke: 'black', fill: 'white',
             radius: 10, opacity: 0, fill: 'white'
         } );
@@ -120,10 +120,15 @@ class Transition
 
                 if( event.evt.button === 0 )
                 {
-                    transition.shape.stroke( 'blue' );
-                    transition.shape.strokeWidth( 3 );
-                    transition.shape.draw( );
-                    mabGUI.selectedTransition = transition;
+
+                    if( mabGUI.selectedTransition == transition )
+                    {
+                        mabGUI.deselectTransition( );
+                        return;
+                    }
+                    
+                    mabGUI.deselectTransition( );
+                    mabGUI.selectTransition( transition );
                 }
 
             } );
@@ -148,6 +153,15 @@ class Transition
                                   transition: transition,
                                   function: transition.func } );
 
+            } );
+
+        transition.component.useSelectionArea.on( 'click',
+            function( event )
+            {
+                if( event.evt.button == 2 && mabGUI.selectedTransition != null )
+                {
+                    transition.component.addDependency( mabGUI.selectedTransition );
+                }
             } );
 
     }
@@ -177,15 +191,33 @@ class Transition
 
             } );
 
-        this.selectShape.on( 'mouseout',
+        this.selectShape.on( 'mouseleave',
             function( )
             {
 
                 mabGUI.stage.container( ).style.cursor = 'default';
-                transition.shape.stroke( 'black' );
-                transition.shape.strokeWidth( 1 );
+
+                if( mabGUI.selectedTransition != transition )
+                {
+                    transition.shape.stroke( 'black' );
+                    transition.shape.strokeWidth( 1 );
+
+                } else {
+                    transition.shape.stroke( 'blue' );
+                    transition.shape.strokeWidth( 5 );
+                }
+
+                mabGUI.stage.batchDraw( );
+
+            } );
+
+        this.selectShape.on( 'mouseout',
+            function( )
+            {
+
                 transition.tooltip.hide( );
                 transition.component.tooltipLayer.draw( );
+
                 window.removeEventListener( 'keydown', remove );
 
             } );
@@ -195,18 +227,18 @@ class Transition
             {
 
                 transition.shape.setPoints(
-                    [ mabGUI.snapCoords( transition.source.shape.getX( ) ),
-                      mabGUI.snapCoords( transition.source.shape.getY( ) ),
-                      mabGUI.snapCoords( ( ( transition.source.shape.getX( ) + transition.destination.shape.getX( )) / 2 ) + transition.offset ),
-                      mabGUI.snapCoords( transition.source.shape.getY( ) + transition.destination.shape.getY( ) ) / 2,
-                      mabGUI.snapCoords( transition.destination.shape.getX( ) ),
-                      mabGUI.snapCoords( transition.destination.shape.getY( ) )
+                    [ MabGUI.snapCoords( transition.source.shape.getX( ) ),
+                      MabGUI.snapCoords( transition.source.shape.getY( ) ),
+                      MabGUI.snapCoords( ( ( transition.source.shape.getX( ) + transition.destination.shape.getX( )) / 2 ) + transition.offset ),
+                      MabGUI.snapCoords( transition.source.shape.getY( ) + transition.destination.shape.getY( ) ) / 2,
+                      MabGUI.snapCoords( transition.destination.shape.getX( ) ),
+                      MabGUI.snapCoords( transition.destination.shape.getY( ) )
 
                 ] );
 
                 transition.selectShape.position( {
-                    x: mabGUI.snapCoords( ( ( transition.source.shape.getX( ) + transition.destination.shape.getX( ) ) / 2 ) + transition.offset ),
-                    y: mabGUI.snapCoords( ( transition.source.shape.getY( ) + transition.destination.shape.getY( ) ) / 2 )
+                    x: MabGUI.snapCoords( ( ( transition.source.shape.getX( ) + transition.destination.shape.getX( ) ) / 2 ) + transition.offset ),
+                    y: MabGUI.snapCoords( ( transition.source.shape.getY( ) + transition.destination.shape.getY( ) ) / 2 )
                 } );
 
             } );
@@ -216,20 +248,41 @@ class Transition
             {
 
                 transition.shape.setPoints(
-                    [ mabGUI.snapCoords( transition.source.shape.getX( ) ),
-                      mabGUI.snapCoords( transition.source.shape.getY( ) ),
-                      mabGUI.snapCoords( ( ( transition.source.shape.getX( ) + transition.destination.shape.getX( ) ) / 2) + transition.offset ),
-                      mabGUI.snapCoords( transition.source.shape.getY( ) + transition.destination.shape.getY( ) ) / 2,
-                      mabGUI.snapCoords( transition.destination.shape.getX( ) ),
-                      mabGUI.snapCoords( transition.destination.shape.getY( ) )
+                    [ MabGUI.snapCoords( transition.source.shape.getX( ) ),
+                      MabGUI.snapCoords( transition.source.shape.getY( ) ),
+                      MabGUI.snapCoords( ( ( transition.source.shape.getX( ) + transition.destination.shape.getX( ) ) / 2) + transition.offset ),
+                      MabGUI.snapCoords( transition.source.shape.getY( ) + transition.destination.shape.getY( ) ) / 2,
+                      MabGUI.snapCoords( transition.destination.shape.getX( ) ),
+                      MabGUI.snapCoords( transition.destination.shape.getY( ) )
 
                     ] );
 
                 transition.selectShape.position(
-                    { x: mabGUI.snapCoords( ( ( transition.source.shape.getX( ) + transition.destination.shape.getX( ) ) / 2 ) + transition.offset ),
-                      y: mabGUI.snapCoords( ( transition.source.shape.getY( ) + transition.destination.shape.getY( ) ) / 2 )
+                    { x: MabGUI.snapCoords( ( ( transition.source.shape.getX( ) + transition.destination.shape.getX( ) ) / 2 ) + transition.offset ),
+                      y: MabGUI.snapCoords( ( transition.source.shape.getY( ) + transition.destination.shape.getY( ) ) / 2 )
                 } );
 
+            } );
+
+        this.component.useSelectionArea.on( 'mouseover',
+            function( event )
+            {
+                if( mabGUI.selectedTransition != null )
+                {
+                    transition.component.useSelectionArea.fill( 'green' );
+                    transition.component.useSelectionArea.opacity( 1 );
+                    mabGUI.stage.batchDraw( );
+                }
+            } );
+
+        this.component.useSelectionArea.on( 'mouseout',
+            function( )
+            {
+                if( transition.component.useSelectionArea.opacity( ) == 1 )
+                {
+                    transition.component.useSelectionArea.opacity( 0 );
+                    mabGUI.stage.batchDraw( );
+                }
             } );
 
     }
@@ -282,124 +335,3 @@ class Transition
     }
 
 }
-
-/*
-// function that adds new transition obj and konva arrow
-function addNewTransition(component_obj, source_obj, dest_obj) {
-
-    // @todo: move this to dependency.js?
-    // 
-    // event: right click on use_selection_area
-    component_obj.use_selection_area.on("click", function(e){
-
-        if (e.evt.button === 2 && mabGUI.selectedTransition != null) {
-
-            mabGUI.selectedTransition.dependency = true;
-
-            var type = ipcRenderer.sendSync("set_dependency_type");
-
-            if(type == 'service') {
-                mabGUI.selectedTransition.dependency_type = 'USE'
-            } else if (type == 'data') {
-                mabGUI.selectedTransition.dependency_type = 'DATA_USE'
-            }
-
-            createDependencyUsePort(component_obj, mabGUI.selectedTransition);
-
-            // reset the source obj and konva pointers to null
-            mabGUI.selectedTransition = null;
-
-        }
-
-    });
-
-    // @todo: move this to dependency.js?
-    //
-    // event: mouse goes over use_selection_area
-    component_obj.use_selection_area.on("mouseover", function() {
-
-        // if source konva has been selected show green provide selection area on mouse enter
-        if(selected_transition != null){
-            component_obj.use_selection_area.fill('green');
-            component_obj.use_selection_area.opacity(1);
-            layer.batchDraw();
-        }
-
-    });
-
-
-    // @todo: move this to dependency.js?
-    //
-    // event: mouse leaves use_selection_area
-    component_obj.use_selection_area.on("mouseout", function() {
-
-        // if use_selection_area was visible, hide it!
-        if(component_obj.use_selection_area.opacity() === 1){
-            component_obj.use_selection_area.opacity(0);
-            layer.batchDraw();
-        }
-
-    });
-
-    }
-} */
-
-// @todo: move this to dependency.js?
-//
-// function to create a use port out of a transition
-function createDependencyUsePort(component_obj, transition_obj){
-
-    var component = component_obj.konva_component;
-    var component_group = component_obj.component_group_konva;
-    var transition_selection_area = transition_obj.transition_selection_area;
-    var tooltipLayer = component_obj.tooltipLayer;
-
-    if(!transition_obj.dependency) {
-        return;
-    }
-
-    // determine which type of dependency
-    switch(transition_obj.dependency_type) {
-
-        // create service-use dep
-        case 'USE':
-            dependency_obj = addNewServiceDependency(component, transition_selection_area, transition_obj, component_obj, component_group, tooltipLayer);
-            transition_obj.dependency_konva_list.push(dependency_obj.dep_group_konva);
-            break;
-
-        // create data-use dep
-        case 'DATA_USE':
-            dependency_obj = addNewDataDependency(component, transition_selection_area, transition_obj, component_obj, component_group, tooltipLayer);
-            transition_obj.dependency_konva_list.push(dependency_obj.dep_group_konva);
-            break;
-
-        // invalid dep type
-        default:
-            alert("Invalid dependency type: " + transition_obj.dependency_type);
-
-        }
-
-    return dependency_obj;
-
-};
-
-// Catch new transition details from ipcMain
-ipcRenderer.on("transition->renderer", function(event, args) {
-
-    if (args.new_func != '') {
-        changeTransitionFunc(args.component, args.old_func, args.new_func);
-    }
-
-    if (args.duration_min != '') {
-        changeTransitionDurationMin(args.component, args.transition, args.new_duration_min);
-    }
-
-    if (args.duration_max != '') {
-        changeTransitionDurationMax(args.component, args.transition, args.new_duration_max);
-    }
-
-    if (args.name != '') {
-        changeTransitionName(args.component, args.transition, args.name);
-    }
-
-});

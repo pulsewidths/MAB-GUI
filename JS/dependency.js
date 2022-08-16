@@ -1,342 +1,316 @@
-// Add new Service dependency function, should only be called by place and transition
-function addNewServiceDependency(component, source_element, source_obj, component_obj, component_group, tooltipLayer) {
+class Dependency {
 
-    // check if source obj dependency count is less than allowed
-    // if(isDependencyAllowed(source_obj)){ return false; }
+    constructor( source, serviceData )
+    {
 
-    var offset;
-    var add;
-    var stub_x;
-    var verticalOffset;
-    source_selected = null;
+        this.type = 'dependency';
+        this.name = 'Dependency_' + ( source.component.dependencies.length + 1 );
+        this.index = source.component.dependencies.length + 1;
 
-    // get index
-    var index;
-    if (component_obj.dependency_list.length == 0){
-        index = 1;
-    } else {
-        index = component_obj.dependency_list[component_obj.dependency_list.length - 1].index + 1;
+        this.source = source;
+        this.serviceData = serviceData; // service or data?
+
+        this.component = source.component;
+        this.connections = [];
+
+        this.enabled = false; // @todo: ??
+
+        this.initOffset( );
+        this.initKonva( );
+        this.initTooltip( );
+        this.initListeners( );
+
+        this.source.dependencies.push( this );
+        this.component.dependencies.push( this );
+
     }
 
-    // provide connection going right of a place
-    if(source_obj.type == 'Place') {
-        // create the dependency object
-        var dependency_obj = new Dependency('PROVIDE', "Dependency_" + index);
-        // add dep obj to comp_obj.dep_list
-        component_obj.dependency_list.push(dependency_obj);
-        console.log('Created new PROVIDE dependency dock');
+    initKonva( )
+    {
 
-        offset = component.getWidth();
-        add = 20;
-        stub_x = 0;
-        // set vertical offset for dependency port
-        verticalOffset = getVerticalOffset(source_obj);
-        console.log("Vertical Offset is " + verticalOffset);
-    } else if (source_obj.type == 'Transition') {
-        // create the dependency object
-        var dependency_obj = new Dependency('USE', "Dependency_" + index);
-        // set transition selection area opacity to 1
-        // source_obj
-        // add dep obj to comp_obj.dep_list
-        component_obj.dependency_list.push(dependency_obj);
-        console.log('Created new USE dependency dock');
+        if( this.serviceData == 'service' )
+        {
+            this.initServiceKonva( );
+        }
+        if( this.serviceData == 'data' )
+        {
+            this.initDataKonva( );
+        }
 
-        // use connection going left of a transition
-        offset = 0;
-        add = -20;
-        stub_x = -15;
-        // set vertical offset for dependency port
-        verticalOffset = getVerticalOffset(source_obj);
-        console.log("Vertical Offset is " + verticalOffset);
-        // toggle transition selection area opacity
-        showTransitionSelectionArea(source_obj);
-    };
-
-    // add dependency obj to source_obj dep list
-    source_obj.dependency_obj_list.push(dependency_obj);
-    
-    // set index
-    dependency_obj.index = index;
-
-    // set source obj of dependency stub
-    dependency_obj.source_obj = source_obj;
-    console.log("This dependencys source obj is " + dependency_obj.source_obj.name);
-
-    // set pointer to depedencies component obj
-    dependency_obj.component_obj = component_obj;
-
-    // increment source obj dependency count
-    source_obj.dependency_count++;
-
-    var dependency = new Konva.Line({
-        points: [source_element.getX(), source_element.getY(), (component.getX() + offset * component.scaleX()), source_element.getY() + verticalOffset],
-        stroke: 'black',
-        strokeWidth: 1,
-        name: 'dependency',
-        tension: 0,
-        dash: [10, 5],
-        listening: true
-    });
-
-    var stem = new Konva.Line({
-        points: [component.getX() + offset * component.scaleX(), source_element.getY() + verticalOffset, 
-                (component.getX() + offset * component.scaleX()) + add, source_element.getY() + verticalOffset],
-        stroke: 'black',
-        strokeWidth: 1,
-        name: 'stem',
-        tension: 0,
-    });
-
-    // create a new dependency_group
-    var dependency_group = new Konva.Group({
-        name: 'dependency_group'
-    });
-
-    // add dependency (dashed line) and stem to dependency group
-    dependency_group.add(dependency);
-    dependency_group.add(stem);
-
-    // stub for provide dependency
-    if(source_obj.type == 'Place'){
-        var stub = getServiceStub();
-        var symbol = getServiceSymbol();
-        symbol.opacity(0);
-        dependency_obj.dep_stub_konva = stub;
-        dependency_obj.dep_symbol_konva = symbol;
-        // add stub and symbol to group for place
-        dependency_group.add(stub);
-        dependency_group.add(symbol);
     }
-    else if(source_obj.type == 'Transition') {
-        // stub for use dependency
-        var stub = getServiceStub();
-        stub.opacity(0);
-        var symbol = getServiceSymbol();
-        dependency_obj.dep_stub_konva = stub;
-        dependency_obj.dep_symbol_konva = symbol;
-        // add stub and symbol to group for transition
-        dependency_group.add(stub);
-        dependency_group.add(symbol);
-    };
 
-    function getServiceStub(){
-        var stub = new Konva.Circle({
-            x: dependency.points()[2] + add + stub_x,
-            y: dependency.points()[3],
-            radius: 8,
-            stroke: 'black',
-            strokeWidth: 1,
-            fill: 'black',
+    initServiceKonva( )
+    {
+
+        if( this.source.type == 'transition' ) // use
+        {
+            // @todo: this naming... eugh
+            var anchor = this.source.selectShape
+            this.add = -20;
+            this.stubX = -15;
+
+        } else if( this.source.type == 'place' ) // provide
+        {
+            var anchor = this.source.shape;
+            this.add = 20;
+            this.stubX = 0;
+        }
+
+        this.shape = new Konva.Line( {
+            points: [ anchor.getX( ),
+                      anchor.getY( ),
+                    ( this.component.shape.getX( ) + this.offset * this.component.shape.scaleX( ) ),
+                      anchor.getY( ) + this.verticalOffset ],
+            stroke: 'black', strokeWidth: 1,
+            name: 'dependency', tension: 0, dash: [ 10, 5 ], listening: true
+        } );
+
+        this.stem = new Konva.Line( {
+            points: [ this.component.shape.getX( ) + this.offset * this.component.shape.scaleX( ),
+                      anchor.getY( ) + this.verticalOffset,
+                    ( this.component.shape.getX( ) + this.offset * this.component.shape.scaleX( ) ) + this.add,
+                      anchor.getY( ) + this.verticalOffset ],
+            stroke: 'black', strokeWidth: 1,
+            name: 'stem', tension: 0
+        } );
+
+        this.stub = new Konva.Circle( {
             name: 'stub',
-            ShadowBlur: 1
-        });
-        return stub;
-    };
+            x: this.shape.points( )[ 2 ] + this.add + this.stubX,
+            y: this.shape.points( )[ 3 ],
+            ShadowBlur: 1, radius: 8,
+            stroke: 'black', strokeWidth: 1, fill: 'black'
+        } );
 
-    function getServiceSymbol(){
-        var symbol = new Konva.Arc({
-            x: stub.getX(),
-            y: stub.getY(),
-            innerRadius: 15,
-            outerRadius: 16,
-            angle: 180,
-            stroke: 'black',
-            strokeWidth: 1,
-            rotation: 270
+        this.symbol = new Konva.Arc( {
+            x: this.stub.getX( ),
+            y: this.stub.getY( ),
+            innerRadius: 15, outerRadius: 16,
+            angle: 180, rotation: 270,
+            stroke: 'black', strokeWidth: 1,
         });
-        return symbol;
+
+        if( this.source.type == 'transition' ) // use
+        {
+            // showTransitionSelectionArea( this.source ); // @todo: ??
+            this.stub.opacity( 0 );
+        } else if( this.source.type == 'place' ) // provide
+        {
+            this.symbol.opacity( 0 );
+        }
+
+        this.group = new Konva.Group( {
+            name: 'dependencyGroup'
+        } );
+
+        this.group.add( this.stub );
+        this.group.add( this.symbol );
+        this.group.add( this.shape );
+        this.group.add( this.stem );
+        this.component.group.add( this.group );
+        this.group.moveToBottom( );
+
     }
 
-    // tooltip to display name of object
-    var tooltip = new Konva.Text({
-        text: "",
-        fontFamily: "Calibri",
-        fontSize: 12,
-        padding: 5,
-        textFill: "white",
-        fill: "black",
-        alpha: 0.75,
-        visible: false
-    });
+    initDataKonva( )
+    {
 
-    tooltipLayer.add(tooltip);
-    stage.add(tooltipLayer);
 
-    // if mouse is over a stub
-    stub.on('mousemove', function () {
-        var mousePos = stage.getPointerPosition();
-        tooltip.position({
-            x : mousePos.x + 10,
-            y : mousePos.y + 10
-        });
-        tooltip.text(component_obj.name + " - " + dependency_obj.name);
-        tooltip.show();
-        tooltipLayer.batchDraw();
-    });
 
-    stub.on('mouseenter', function () {
-        window.addEventListener('keydown', removeStub);
-    });
+    }
 
-    // hide the tooltip on mouse out
-    stub.on('mouseout', function(){
-        tooltip.hide();
-        tooltipLayer.draw();
-        window.removeEventListener('keydown', removeStub);
-    });
+    initOffset( )
+    {
 
-    function removeStub(ev){
-        // keyCode Delete key = 46
-        if (ev.keyCode === 46 || ev.keyCode == 8) {
-            if (confirm('Are you sure you want to delete this dependency?')){
-                // Delete it!
-                //dependency_group.destroy();
-                tooltip.destroy();
+        if( this.source.type == 'transition' ) // use
+        {
+            this.offset = 0;
+        }
+        if( this.source.type == 'place' ) // provide
+        {
+            this.offset = this.component.shape.getWidth( );
+        }
 
-                // remove the depedency obj from its components dependency list
-                //removeDependencyObj(component_obj, dependency_obj);
-                deletor(dependency_obj);
-            } else {
-                // Do nothing!
+        let verticalOffset;
+        let parallelOffset = 0;
+
+        if( this.source.type == 'transition' )
+        {
+            parallelOffset = this.source.offset * 5;
+        }
+
+        switch( this.source.dependencies.length )
+        {
+            case 0:
+                verticalOffset = 0;
+                break;
+            case 1:
+                verticalOffset = 50;
+                break;
+            case 2:
+                verticalOffset = -50;
+                break;
+        }
+
+        verticalOffset += parallelOffset;
+
+        this.verticalOffset = verticalOffset;
+
+    }
+
+    initTooltip( )
+    {
+
+        this.tooltip = new Konva.Text( {
+            text: '',
+            fontFamily: 'Calibri', fontSize: 12,
+            textFill: 'white', fill: 'black',
+            padding: 5, alpha: 0.75, visible: false
+        } );
+
+        this.component.tooltipLayer.add( this.tooltip );
+
+    }
+
+    initListeners( )
+    {
+        this.initLeftClickListeners( );
+        this.initRightClickListeners( );
+        this.initMovementListeners( );
+    }
+
+    initLeftClickListeners( )
+    {
+
+        let dependency = this;
+
+        this.stub.on( 'click',
+            function( event )
+            {
+                if( event.evt.button == 0 )
+                {
+                    if( mabGUI.selectedDependency == dependency )
+                    {
+                        mabGUI.deselectDependency( );
+                        return;
+                    }
+                    mabGUI.deselectDependency( );
+                    mabGUI.selectDependency( dependency );
+                }
+            } );
+
+    }
+
+    initRightClickListeners( )
+    {
+
+        let dependency = this;
+
+        this.stub.on( 'click',
+        function( event )
+        {
+            if( event.evt.button == 2 )
+            {
+                if( !mabGUI.selectedDependency || mabGUI.selectedDependency == dependency )
+                {
+                    // change dependency details!
+                    mabGUI.deselectDependency( );
+                }
+
+                mabGUI.assembly.addConnection( mabGUI.selectedDependency, dependency );
+                mabGUI.deselectDependency( );
+
+            }
+        } );
+
+    }
+
+    initMovementListeners( )
+    {
+
+        let dependency = this;
+        let remove = this.remove.bind( this );
+
+        if( this.source.type == 'transition' )
+        {
+            var anchor = this.source.selectShape;
+        }
+        if( this.source.type == 'place' )
+        {
+            var anchor = this.source.shape;
+        }
+
+        this.stub.on( 'mousemove',
+            function( )
+            {
+                let mousePos = mabGUI.stage.getPointerPosition( );
+                dependency.tooltip.position( {
+                    x: mousePos.x + 10,
+                    y: mousePos.y + 10
+                } );
+                dependency.tooltip.text( dependency.component.name + ' - ' + dependency.name );
+                dependency.tooltip.show( );
+                mabGUI.stage.batchDraw( );
+            } );
+
+        this.stub.on( 'mouseenter',
+            function( )
+            {
+                window.addEventListener( 'keydown', remove );
+            } );
+
+        this.stub.on( 'mouseout',
+            function( )
+            {
+                dependency.tooltip.hide( );
+                mabGUI.stage.batchDraw( );
+                window.removeEventListener( 'keydown', remove );
+            } );
+
+        anchor.on( 'xChange yChange',
+            function( )
+            {
+                dependency.shape.setPoints( [ anchor.getX( ),
+                                              anchor.getY( ),
+                                              dependency.component.shape.getX( ) + dependency.offset * dependency.component.shape.scaleX( ),
+                                              anchor.getY( ) + dependency.verticalOffset ] );
+                dependency.stem.setPoints( [ dependency.component.shape.getX( ) + dependency.offset * dependency.component.shape.scaleX( ),
+                                             anchor.getY( ) + dependency.verticalOffset,
+                                             ( dependency.component.shape.getX( ) + dependency.offset * dependency.component.shape.scaleX( ) ) + dependency.add,
+                                             anchor.getY( ) + dependency.verticalOffset ] );
+                dependency.stub.position( {
+                    x: dependency.shape.points( )[ 2 ] + dependency.add + dependency.stubX,
+                    y: dependency.shape.points( )[ 3 ]
+                } );
+                dependency.symbol.position( {
+                    x: dependency.stub.getX( ),
+                    y: dependency.stub.getY( )
+                } );
+            } );
+
+    }
+
+    remove( event )
+    {
+        if( event != null )
+        {
+
+            if( !( event.keyCode == 46 || event.keyCode == 8 ) )
+            {
                 return;
             }
-        }
-    };
-
-    // when the source element moves
-    source_element.on('xChange yChange', (e) => {
-        dependency.setPoints([source_element.getX(),
-                              source_element.getY(),
-                              component.getX() + offset * component.scaleX(),
-                              source_element.getY() + verticalOffset]);
-        stem.setPoints([component.getX() + offset * component.scaleX(),
-                        source_element.getY() + verticalOffset,
-                        (component.getX() + offset * component.scaleX()) + add,
-                        source_element.getY() + verticalOffset]);
-        stub.position({
-            x: dependency.points()[2] + add + stub_x,
-            y: dependency.points()[3]
-        });
-        symbol.position({
-            x: stub.getX(),
-            y: stub.getY()
-        });
-
-        //layer.draw();
-    });
-
-     // when the source element moves
-     component.on('xChange', (e) => {
-        dependency.setPoints([source_element.getX(),
-                              source_element.getY(),
-                              component.getX() + offset * component.scaleX(),
-                              source_element.getY() + verticalOffset]);
-        stem.setPoints([component.getX() + offset * component.scaleX(),
-                        source_element.getY() + verticalOffset,
-                        (component.getX() + offset * component.scaleX()) + add,
-                        source_element.getY() + verticalOffset]);
-
-        stub.position({
-            x: dependency.points()[2] + add + stub_x,
-            y: dependency.points()[3]
-        });
-        symbol.position({
-            x: stub.getX(),
-            y: stub.getY()
-        });
-    });
-
-    // if a click over stub
-    stub.on("click", function(e){
-        if (e.evt.button === 0){
-            // first left click
-            // check if stub is a provide
-            if(source_obj.type == 'Place'){
-                provide_component_obj = component_obj;
-                provide_source_obj = source_obj;
-                provide_stub_konva = stub;
-                provide_component_group = component_group;
-                provide_symbol = symbol;
-                provide_dependency_obj = dependency_obj;
-                // set pointer to dependency obj stub/symbol
-                provide_dependency_obj.dep_stub_konva = provide_symbol;
-                provide_dependency_type = source_obj.dependency_type;
-                // set source selected true
-                source_selected = true;
+            
+            if( !confirm( 'Are you sure you want to delete this Transition?' ) )
+            {
+                return;
             }
-        } else if (e.evt.button === 2) {
-            // check if provide stub was selected prior
-            if(source_selected != null){
-                // make sure connection is going to USE stub
-                if(source_obj.type == 'Transition'){
-                    // get the use stub depedency type
-                    use_dependency_type = source_obj.dependency_type;
-                    // check if source stub and dest stub is the same dependency type
-                    if((provide_dependency_type == 'PROVIDE' && use_dependency_type == 'USE') || (provide_dependency_type == 'DATA_PROVIDE' && use_dependency_type == 'DATA_USE')){
-                        use_component_obj = component_obj;
-                        // Check if connection is going to a different component
-                        if(provide_component_obj != use_component_obj){
-                            use_source_obj = source_obj;
-                            use_stub_konva = stub;
-                            use_component_group = component_group;
-                            use_dependency_obj = dependency_obj;
-                            // set pointer to dependency obj stub/symbol
-                            use_dependency_obj.dep_stub_konva = use_stub_konva;
-                            // check if connection already exists between these two depedencies
-                            if(!checkConnectionExist(provide_dependency_obj, use_dependency_obj)){
-                                // check if arc is visible
-                                provide_dependency_obj.dep_stub_konva.opacity(1);
-                                use_dependency_obj.dep_stub_konva.opacity(1);
-                                // if(provide_symbol.opacity() == 0){
-                                //     // make it visible
-                                //     provide_symbol.opacity(1);
-                                //     use_stub_konva.opacity(1);
-                                // }
-                                // create new connection here
-                                connection_obj = addNewConnection(provide_component_obj, provide_source_obj, provide_stub_konva, provide_component_group, use_component_obj, use_source_obj, use_stub_konva, use_component_group, provide_dependency_obj, use_dependency_obj);
-                            } else {
-                                alert("Connection already exists between these two dependencies");
-                            }
-                        } else {
-                            alert("Cant create connection from " + provide_component_obj.name + " to " + use_component_obj.name);
-                        }
-                    } else {
-                        alert("Incompatible dependency types");
-                    }
-                } else {
-                    alert("Left click Provide dependency stub and Right click Use dependency stub to connect them");
-                }
-            } else {
-                // right clk source was not selected, open window for editing
-                ipcRenderer.send("change_stub_details", {component: component_obj.name, stub: dependency_obj.name});
-            }
-            // reset source and dest
-            provide_stub_konva = null;
-            use_stub_konva = null;
-            source_selected = null;
+
         }
-    });
 
-    // add dependency group to dependency obj
-    dependency_obj.dep_group_konva = dependency_group;
-    // add dependency group to component group
-    component_group.add(dependency_group);
-    // move dependency group to bottom
-    dependency_group.moveToBottom();
-    // draw the layer with added dependency elements
-    layer.draw();
+        // ...remove!
 
-    return dependency_obj;
-}
-
-function showTransitionSelectionArea(source_obj){
-    if(source_obj.type != "Transition"){
-        return;
-    } else {
-        if(source_obj.transition_selection_area.opacity() == 0){
-            source_obj.transition_selection_area.opacity(1);
-        }
     }
+
 }
 
 function hideTransitionSelectionArea(source_obj){
@@ -347,35 +321,6 @@ function hideTransitionSelectionArea(source_obj){
             source_obj.transition_selection_area.opacity(0);
         }
     }
-}
-
-function isDependencyAllowed(source_obj){
-    if(source_obj.dependency_count >= MAX_DEPENDENCY_COUNT){
-        return false;
-    } else {
-        return true;
-    }
-}
-
-// assigns verticalOffset to value based on source obj dependency count
-function getVerticalOffset(source_obj){
-    var verticalOffset;
-    var parallelOffset = 0;
-    if(source_obj.type == 'Transition'){
-        parallelOffset = source_obj.offset * 5;
-    }
-    switch(source_obj.dependency_count){
-        case 0:
-            verticalOffset = 0;
-            break;
-        case 1:
-            verticalOffset = 50;
-            break;
-        case 2:
-            verticalOffset = -50;
-            break;
-    }
-    return verticalOffset += parallelOffset;
 }
 
 // Add new Service dependency function, should only be called by place and transition
@@ -392,14 +337,6 @@ function addNewDataDependency(component, source_element, source_obj, component_o
     var data_symbol_use;
 
     var verticalOffset;
-
-    // get index
-    var index;
-    if (component_obj.dependency_list.length == 0){
-        index = 1;
-    } else {
-        index = component_obj.dependency_list[component_obj.dependency_list.length - 1].index + 1;
-    }
 
     // provide connection going right of a place
     if(source_obj.type == 'Place'){
