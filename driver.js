@@ -9,7 +9,7 @@ const Component = require( './JS/component.js' );
 
 const pluginManager = require( './JS/pluginManager.js' ); // @todo: change filename
 
-// driver.js is ran in the main process (as opposed to )
+// driver.js is ran in the main process (as opposed to the renderer)
 
 // on loading background stuff, run 'boot' function.
 app.on( 'ready', boot );
