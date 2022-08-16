@@ -1,183 +1,152 @@
-// Add new connection function, should only be called by provide depedency stub
-function addNewConnection(provide_component_obj, provide_source_obj, provide_stub_konva, provide_component_group, use_component_obj, use_source_obj, use_stub_konva, use_component_group, provide_dependency_obj, use_dependency_obj) {
+class Connection
+{
 
-    var provide_offset = 15;
-    var use_offset = -10;
-    var midpoint_x = getMidPointX();
-    var midpoint_y = getMidPointY();
+    constructor( provide, use )
+    {
 
-    var connection = new Konva.Line({
-        points: [provide_stub_konva.getAbsolutePosition().x + provide_offset,
-                 provide_stub_konva.getAbsolutePosition().y,
-                 midpoint_x,
-                 provide_stub_konva.getAbsolutePosition().y,
-                 midpoint_x,
-                 use_stub_konva.getAbsolutePosition().y,
-                 use_stub_konva.getAbsolutePosition().x + use_offset,
-                 use_stub_konva.getAbsolutePosition().y],
-        stroke: 'black',
-        strokeWidth: 1,
-        name: 'connection',
-        lineCap: 'round',
-        lineJoin: 'round',
-        tension : 0
-    });
+        this.provide = provide;
+        this.use = use;
 
-    var gate1 = new Konva.Line({
-        points: getPointsGate1(),
-        stroke: 'black',
-        strokeWidth: 1,
-        name: 'gate',
-        lineCap: 'round',
-        lineJoin: 'round',
-        tension : 0,
-        opacity: 1
-    });
-    var gate2 = new Konva.Line({
-        points: getPointsGate2(),
-        stroke: 'black',
-        strokeWidth: 1,
-        name: 'gate',
-        lineCap: 'round',
-        lineJoin: 'round',
-        tension : 0,
-        opacity: 1
-    });
+        this.provideOffset = 15;
+        this.useOffset = -10;
 
-    // create connection group
-    var connection_group = new Konva.Group({
-        name: 'connection_group'
-    });
+        this.initKonva( );
+        this.initListeners( );
 
-    // add konva elements to group
-    connection_group.add(connection);
-    connection_group.add(gate1);
-    connection_group.add(gate2);
+        this.provide.connections.push( this );
+        this.use.connections.push( this );
 
-    // create the connection object
-    var connection_obj = new Connection();
+        this.provide.component.connections.provide.push( this );
+        this.use.component.connections.use.push( this );
 
-    // set pointers to provide and use dependency ports
-    connection_obj.provide_port_obj = provide_dependency_obj;
-    connection_obj.use_port_obj = use_dependency_obj;
-    connection_obj.gate1_konva = gate1;
-    connection_obj.gate2_konva = gate2;
-    connection_obj.use_component_name = use_component_obj.name;
-    connection_obj.provide_component_name = provide_component_obj.name;
-    connection_obj.connection_line_konva = connection;
-    connection_obj.connection_group_konva = connection_group;
-    // // create pointer to connection_obj from provide_dependency_obj
-    provide_dependency_obj.connection_list.push(connection_obj);
-    // create pointer to connection_obj from use_dependency_obj
-    use_dependency_obj.connection_list.push(connection_obj);
-
-    // add connection to global list
-    connection_list.push(connection_obj);
-    console.log(connection_list);
-
-    // when the provide dependency moves
-    provide_stub_konva.on('xChange yChange', (e) => {
-        // recalculate the midpoint
-        midpoint_x = getMidPointX();
-        midpoint_y = getMidPointY();
-        connection.setPoints([provide_stub_konva.getAbsolutePosition().x + provide_offset,
-                              provide_stub_konva.getAbsolutePosition().y,
-                              midpoint_x,
-                              provide_stub_konva.getAbsolutePosition().y,
-                              midpoint_x,
-                              use_stub_konva.getAbsolutePosition().y,
-                              use_stub_konva.getAbsolutePosition().x + use_offset,
-                              use_stub_konva.getAbsolutePosition().y]);
-        gate1.setPoints(getPointsGate1());
-        gate2.setPoints(getPointsGate2());
-    });
-
-    // when the provide component moves
-    provide_component_group.on('xChange yChange', (e) => {
-        // recalculate the midpoint
-        midpoint_x = getMidPointX();
-        midpoint_y = getMidPointY();
-        connection.setPoints([provide_stub_konva.getAbsolutePosition().x + provide_offset,
-                              provide_stub_konva.getAbsolutePosition().y,
-                              midpoint_x,
-                              provide_stub_konva.getAbsolutePosition().y,
-                              midpoint_x,
-                              use_stub_konva.getAbsolutePosition().y,
-                              use_stub_konva.getAbsolutePosition().x + use_offset,
-                              use_stub_konva.getAbsolutePosition().y]);
-        gate1.setPoints(getPointsGate1());
-        gate2.setPoints(getPointsGate2());
-    });
-
-    // when the provide dependency moves
-    use_stub_konva.on('xChange yChange', (e) => {
-        // recalculate the midpoint
-        midpoint_x = getMidPointX();
-        midpoint_y = getMidPointY();
-        connection.setPoints([provide_stub_konva.getAbsolutePosition().x + provide_offset,
-                              provide_stub_konva.getAbsolutePosition().y,
-                              midpoint_x,
-                              provide_stub_konva.getAbsolutePosition().y,
-                              midpoint_x,
-                              use_stub_konva.getAbsolutePosition().y,
-                              use_stub_konva.getAbsolutePosition().x + use_offset,
-                              use_stub_konva.getAbsolutePosition().y]);
-        gate1.setPoints(getPointsGate1());
-        gate2.setPoints(getPointsGate2());
-    });
-
-    // when the provide component moves
-    use_component_group.on('xChange yChange', (e) => {
-        // recalculate the midpoint
-        midpoint_x = getMidPointX();
-        midpoint_y = getMidPointY();
-        connection.setPoints([provide_stub_konva.getAbsolutePosition().x + provide_offset,
-                              provide_stub_konva.getAbsolutePosition().y,
-                              midpoint_x,
-                              provide_stub_konva.getAbsolutePosition().y,
-                              midpoint_x,
-                              use_stub_konva.getAbsolutePosition().y,
-                              use_stub_konva.getAbsolutePosition().x + use_offset,
-                              use_stub_konva.getAbsolutePosition().y]);
-        gate1.setPoints(getPointsGate1());
-        gate2.setPoints(getPointsGate2());
-    });
-
-    function getMidPointX(){
-        return ((provide_stub_konva.getAbsolutePosition().x + provide_offset) + (use_stub_konva.getAbsolutePosition().x + use_offset)) / 2;
     }
 
-    function getMidPointY(){
-        return ((provide_stub_konva.getAbsolutePosition().y + provide_offset) + (use_stub_konva.getAbsolutePosition().y + use_offset)) / 2;
+    initKonva( )
+    {
+
+        let midpoint = this.getMidpoint( );
+
+        this.shape = new Konva.Line( {
+            points: [ this.provide.stub.getAbsolutePosition( ).x + this.provideOffset,
+                      this.provide.stub.getAbsolutePosition( ).y,
+                      midpoint.x,
+                      this.provide.stub.getAbsolutePosition( ).y,
+                      midpoint.x,
+                      this.use.stub.getAbsolutePosition( ).y,
+                      this.use.stub.getAbsolutePosition( ).x + this.useOffset,
+                      this.use.stub.getAbsolutePosition( ).y ],
+            stroke: 'black', strokeWidth: 1,
+            name: 'connection',
+            lineCap: 'round', lineJoin: 'round'
+        } );
+
+        this.gate1 = new Konva.Line( {
+            points: this.getPointsGate1( ),
+            stroke: 'black', strokeWidth: 1,
+            name: 'gate',
+            lineCap: 'round', lineJoin: 'round', tension: 0,
+            opacity: 1
+        } );
+        this.gate2 = new Konva.Line( {
+            points: this.getPointsGate2( ),
+            stroke: 'black', strokeWidth: 1,
+            name: 'gate',
+            lineCap: 'round', lineJoin: 'round', tension: 0,
+            opacity: 1
+        } );
+
+        this.group = new Konva.Group( {
+            name: 'group'
+        })
+
+        this.provide.symbol.opacity( 1 );
+        this.use.stub.opacity( 1 );
+
+        this.group.add( this.shape );
+        this.group.add( this.gate1 );
+        this.group.add( this.gate2 );
+
+        mabGUI.layer.add( this.group );
+
     }
 
-    function getPointsGate1(){
-        var points = [];
-        if(provide_stub_konva.getAbsolutePosition().y > use_stub_konva.getAbsolutePosition().y ||
-           provide_stub_konva.getAbsolutePosition().y < use_stub_konva.getAbsolutePosition().y) {
-            // horizontal gates
-            points = [midpoint_x - 15, midpoint_y + 5, midpoint_x + 15, midpoint_y + 5];
+    initListeners( )
+    {
+
+        let updateShapes = this.updateShapes.bind( this );
+
+        this.provide.stub.on( 'xChange yChange', updateShapes ); // shape?
+        this.use.stub.on( 'xChange yChange', updateShapes ); // shape?
+        this.provide.component.group.on( 'xChange yChange', updateShapes  );
+        this.use.component.group.on( 'xChange yChange', updateShapes );
+
+    }
+
+    updateShapes( )
+    {
+
+        let midpoint = this.getMidpoint( );
+
+        this.shape.setPoints( [ this.provide.stub.getAbsolutePosition( ).x + this.provideOffset,
+                                this.provide.stub.getAbsolutePosition( ).y,
+                                midpoint.x,
+                                this.provide.stub.getAbsolutePosition( ).y,
+                                midpoint.x,
+                                this.use.stub.getAbsolutePosition( ).y,
+                                this.use.stub.getAbsolutePosition( ).x + this.useOffset,
+                                this.use.stub.getAbsolutePosition( ).y ] );
+
+        this.gate1.setPoints( this.getPointsGate1( ) );
+        this.gate2.setPoints( this.getPointsGate2( ) );
+
+    }
+
+    // @todo: can this be placed somewhere better? or abstracted? x1+x2/2, y1+y2/2?
+    getMidpoint( )
+    {
+
+        let x = ( this.provide.stub.getAbsolutePosition( ).x + this.provideOffset + this.use.stub.getAbsolutePosition( ).x + this.useOffset ) / 2;
+        let y = ( this.provide.stub.getAbsolutePosition( ).y + this.use.stub.getAbsolutePosition( ).y ) / 2;
+
+        return { x: x, y: y };
+
+    }
+
+    // @todo: could these be abstracted better?
+    getPointsGate1( )
+    {
+
+        let points = [ ];
+        let midpoint = this.getMidpoint( );
+        
+        if( this.provide.stub.getAbsolutePosition( ).y > this.use.stub.getAbsolutePosition( ).y ||
+            this.provide.stub.getAbsolutePosition( ).y < this.use.stub.getAbsolutePosition( ).y )
+        {
+            points = [ midpoint.x - 15, midpoint.y + 5, midpoint.x + 15, midpoint.y + 5 ];
         } else {
-            // vertical gates
-            points = [midpoint_x - 5, midpoint_y - 15, midpoint_x - 5, midpoint_y + 15];
+            points = [ midpoint.x - 5, midpoint.y - 15, midpoint.x - 5, midpoint.y + 15 ];
+        }
+
+        return points;
+
+    }
+
+    getPointsGate2( )
+    {
+
+        let points = [ ];
+        let midpoint = this.getMidpoint( );
+        if( this.provide.stub.getAbsolutePosition( ).y > this.use.stub.getAbsolutePosition( ).y ||
+            this.provide.stub.getAbsolutePosition( ).y < this.use.stub.getAbsolutePosition( ).y )
+        {
+            points = [ midpoint.x - 15, midpoint.y - 5, midpoint.x + 15, midpoint.y - 5 ];
+        } else {
+            points = [ midpoint.x + 5, midpoint.y - 15, midpoint.x + 5, midpoint.y + 15 ];
         }
         return points;
+
     }
 
-    function getPointsGate2(){
-        var points = [];
-        if(provide_stub_konva.getAbsolutePosition().y > use_stub_konva.getAbsolutePosition().y || provide_stub_konva.getAbsolutePosition().y < use_stub_konva.getAbsolutePosition().y){
-            // horizontal gates
-            points = [midpoint_x - 15, midpoint_y - 5, midpoint_x + 15, midpoint_y - 5];
-        } else {
-            // vertical gates
-            points = [midpoint_x + 5, midpoint_y - 15, midpoint_x + 5, midpoint_y + 15];
-        }
-        return points;
-    }
 
-    layer.add(connection_group);
-    layer.draw();
 
-    return connection_obj;
 }
