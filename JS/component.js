@@ -161,7 +161,7 @@ class Component
                     component.shape.draw( );
 
                     // send signal to driver.js, with name of component to be changed
-                    ipcRenderer.send( 'changeComponentName-createwindow', component.name );
+                    ipcRenderer.send( 'changeComponentDetails-createwindow', component.name );
 
                 }
             }
@@ -234,13 +234,24 @@ class Component
 
     }
 
-    findPlace( placeName )
+    getPlace( placeName )
     {
         for( let index = 0; index < this.places.length; index++ )
         {
             if( this.places[ index ].name == placeName )
             {
                 return this.places[ index ];
+            }
+        }
+    }
+
+    getTransition( transitionName )
+    {
+        for( let index = 0; index < this.transitions.length; index++ )
+        {
+            if( this.transitions[ index ].name == transitionName )
+            {
+                return this.transitions[ index ];
             }
         }
     }
@@ -253,12 +264,15 @@ class Component
         mabGUI.deselectPlace( );
         mabGUI.stage.batchDraw( );
 
+        return place;
+
     }
 
+    // @todo: prompt w/ IPC
     addDependency( source )
     {
 
-        let serviceData = 'service'; // @todo: placeholder; prompt with IPC
+        let serviceData = ipcRenderer.sendSync( 'dependency-servicedataprompt' );
 
         let dependency = new Dependency( source, serviceData );
 
@@ -266,6 +280,8 @@ class Component
         mabGUI.deselectPlace( );
 
         mabGUI.stage.batchDraw( );
+
+        return dependency;
 
     }
 
@@ -281,10 +297,11 @@ class Component
             let name = 'Transition_' + this.transitions.length;
             let func = 'defaultFunction' + this.transitions.length;
 
-            let transition = new Transition( name, source, destination, func );
+            var transition = new Transition( name, source, destination, func );
 
         } else {
             alert('Can\'t create more than ' + MAX_TRANSITIONS + ' transitions, or create a cycle.');
+            return;
         }
 
         mabGUI.stage.container( ).style.cursor = 'default';
@@ -292,6 +309,8 @@ class Component
         destination.shape.stroke( 'black' );
         destination.shape.strokeWidth( 1 );
         mabGUI.stage.batchDraw( );
+
+        return transition;
 
     }
 
