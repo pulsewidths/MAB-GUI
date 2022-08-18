@@ -21,6 +21,26 @@ class MabGUI
 
     }
 
+    // creates a test assembly; see index.html:37.
+    test( )
+    {
+        this.assembly.addComponent( { x: 225, y: 163 } );
+        this.assembly.addComponent( { x: 725, y: 163 } );
+
+        for( let componentIndex = 0; componentIndex < this.assembly.components.length; componentIndex++ )
+        {
+            let place1 = this.assembly.components[ componentIndex ].addPlace( { x: 150, y: 150 } );
+            let place2 = this.assembly.components[ componentIndex ].addPlace( { x: 150, y: 250 } );
+            
+            let transition = this.assembly.components[ componentIndex ].addTransition( place1, place2 );
+            let dependency1 = this.assembly.components[ componentIndex ].addDependency( place1, 'data' );
+            let dependency2 = this.assembly.components[ componentIndex ].addDependency( transition, 'data' );
+        }
+
+
+        
+    }
+
     initStage( )
     {
 
@@ -125,10 +145,19 @@ class MabGUI
 
         this.deselectAll( );
         this.selectedDependency = dependency;
-        this.selectedDependency.stub.opacity( 0.5 );
-        this.selectedDependency.stub.stroke( 'blue' );
-        this.selectedDependency.stub.fill( 'white' );
-        this.selectedDependency.stub.strokeWidth( 3 );
+
+        if( this.selectedDependency.source.type == 'transition' )
+        {
+            var highlightShape = this.selectedDependency.stub;
+        } else if( this.selectedDependency.source.type == 'place' )
+        {
+            var highlightShape = this.selectedDependency.symbol;
+        }
+
+        highlightShape.opacity( 0.5 );
+        highlightShape.stroke( 'blue' );
+        highlightShape.fill( 'white' );
+        highlightShape.strokeWidth( 3 );
         this.stage.batchDraw( );
 
     }
@@ -143,16 +172,25 @@ class MabGUI
 
         if( this.selectedDependency.source.type == 'transition' ) // use
         {
-            this.selectedDependency.stub.opacity( 0 );
+            var highlightShape = this.selectedDependency.stub;
         }
-        if( this.selectedDependency.source.type == 'place' )
+        if( this.selectedDependency.source.type == 'place' ) // provide
         {
-            this.selectedDependency.stub.opacity( 1 );
+            var highlightShape = this.selectedDependency.symbol;
         }
 
-        this.selectedDependency.stub.stroke( 'black' );
-        this.selectedDependency.stub.fill( 'black' );
-        this.selectedDependency.stub.strokeWidth( 1 );
+        highlightShape.stroke( 'black' );
+        highlightShape.fill( 'black' );
+        highlightShape.strokeWidth( 1 );
+
+        if( this.selectedDependency.connections.length == 0 )
+        {
+            highlightShape.opacity( 0 );
+        } else
+        {
+            highlightShape.opacity( 1 );
+        }
+
         this.selectedDependency = null;
         this.stage.batchDraw( );
 
@@ -177,6 +215,8 @@ class Assembly
         let component = new Component( name, pos );
         mabGUI.stage.batchDraw( );
 
+        return component;
+
     }
 
     addConnection( dependency1, dependency2 )
@@ -199,16 +239,15 @@ class Assembly
             return;
         }
 
-        // connection already exists.
-        console.log( this.getConnection( provide, use ) );
         if( this.getConnection( provide, use ) )
         {
-            console.log( 'already exists!' );
             return;
         }
 
         let connection = new Connection( provide, use );
         mabGUI.stage.batchDraw( );
+
+        return connection;
 
     }
 
