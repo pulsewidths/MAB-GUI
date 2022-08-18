@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+
+        <meta name="Change Transition Details" charset="utf-8">
+
+    </head>
+
+    <body>
+
+        <p>Please enter the transition's new information:</p>
+        Name: <input type="text" name="transition_name" id="transition_name" autofocus><br>
+        Function: <input type="text" name="function_name" id="function_name"><br>
+        Minimum Duration: <input type="text" name="min_duration" id="min_duration"><br>
+        Maximum Duration: <input type="text" name="max_duration" id="max_duration"><br>
+        <hr>
+        <button id="submit">Change Transition Details</button>
+        
+        <script>
+
+            let ipcRenderer = require( 'electron' ).ipcRenderer;
+
+            const submit = document.getElementById("submit");
+
+            let componentName = null;
+            let oldName = null;
+
+            ipcRenderer.on( 'changeTransitionDetails-sendtransitiontowindow',
+                function( event, componentNameArg, oldNameArg )
+                {
+                    componentName = componentNameArg;
+                    oldName = oldNameArg;
+                } );
+
+
+            submit.addEventListener('click',
+                function( event )
+                {
+
+                    event.preventDefault();
+
+                    const name = document.querySelector('#transition_name').value.replace(/ /g,"_");
+                    const func = document.querySelector('#function_name').value.replace(/ /g,"_");
+                    const minDuration = document.querySelector('#min_duration').value.replace(/ /g,"_");
+                    const maxDuration = document.querySelector('#max_duration').value.replace(/ /g,"_");
+
+                    ipcRenderer.send('changeTransitionDetails-update', componentName,
+                        oldName,
+                        { name: name, func: func,
+                          minDuration: minDuration, maxDuration: maxDuration } );
+
+                    window.close( );
+
+                } );
+
+        </script>
+
+    </body>
+
+</html>

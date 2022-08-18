@@ -9,14 +9,14 @@ class Transition
 
         this.source = source;
         this.destination = destination;
-        this.function = func;
+        this.func = func;
 
         this.component = source.component;
         this.dependencies = [ ]; // 3 max
 
-        this.current_duration = 0;
-        this.duration_min = 1;
-        this.duration_max = 2;
+        this.currentDuration = 0;
+        this.minDuration = 1;
+        this.maxDuration = 2;
 
         this.initOffset( );
 
@@ -54,12 +54,12 @@ class Transition
             radius: 10, opacity: 0, fill: 'white'
         } );
 
-        this.source.shape.moveToTop( );
-        this.destination.shape.moveToTop( );
-
         this.group.add( this.shape );
         this.group.add( this.selectShape );
         this.component.group.add( this.group );
+
+        this.source.shape.moveToTop( );
+        this.destination.shape.moveToTop( );
 
     }
 
@@ -103,35 +103,30 @@ class Transition
     initListeners( )
     {
 
-        this.initLeftClickListeners();
+        let leftClickListener = this.leftClickListener.bind( this );
+
+        this.selectShape.on( 'click', leftClickListener );
+
         this.initRightClickListeners();
         this.initMovementListeners();
 
     }
 
-    initLeftClickListeners( )
+    leftClickListener( event )
     {
 
-        let transition = this;
+        if( event.evt.button == 0 )
+        {
 
-        this.selectShape.on( 'click',
-            function( event )
+            if( mabGUI.selectedTransition == this )
             {
-
-                if( event.evt.button === 0 )
-                {
-
-                    if( mabGUI.selectedTransition == transition )
-                    {
-                        mabGUI.deselectTransition( );
-                        return;
-                    }
-                    
-                    mabGUI.deselectTransition( );
-                    mabGUI.selectTransition( transition );
-                }
-
-            } );
+                mabGUI.deselectTransition( );
+                return;
+            }
+            
+            mabGUI.deselectTransition( );
+            mabGUI.selectTransition( this );
+        }
 
     }
 
@@ -148,10 +143,8 @@ class Transition
                 transition.shape.strokeWidth( 3 );
                 transition.shape.draw( );
 
-                ipcRenderer.send( 'change_transition_details',
-                                { component: transition.component.name,
-                                  transition: transition,
-                                  function: transition.func } );
+                ipcRenderer.send( 'changeTransitionDetails-createwindow',
+                                transition.component.name, transition.name );
 
             } );
 

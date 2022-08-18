@@ -198,7 +198,7 @@ function initListeners( )
 {
 
     // caught from component.js's rmb event
-    ipcMain.on( 'changeComponentName-createwindow',
+    ipcMain.on( 'changeComponentDetails-createwindow',
         function( event, componentName )
         {
 
@@ -217,12 +217,12 @@ function initListeners( )
                 function( event )
                 {
                     // once the new window is loaded, send the new renderer the name of the component that's changing
-                    componentWindow.webContents.send( 'changeComponentName-oldnametonewwindow', componentName );
+                    componentWindow.webContents.send( 'changeComponentDetails-sendcomponenttowindow', componentName );
                 } );
 
         } );
     // caught from place.js's rmb event
-    ipcMain.on( 'changePlaceName-createwindow',
+    ipcMain.on( 'changePlaceDetails-createwindow',
         function( event, componentName, placeName )
         {
             var placeWindow = new BrowserWindow(
@@ -239,60 +239,82 @@ function initListeners( )
             placeWindow.webContents.on( 'did-finish-load',
                 function( event )
                 {
-                    placeWindow.webContents.send( 'changePlaceName-oldnametonewwindow', componentName, placeName );
+                    placeWindow.webContents.send( 'changePlaceDetails-sendplacetowindow', componentName, placeName );
                 } );
+        } );
+    ipcMain.on( 'changeTransitionDetails-createwindow',
+        function( event, componentName, transitionName )
+        {
+
+            var transitionWindow = new BrowserWindow( 
+                {
+                    width: 470, height: 275,
+                    webPreferences: { nodeIntegration: true }
+                } );
+
+            transitionWindow.loadURL( url.format( {
+                pathname: path.join( __dirname, './HTML/updateTransition.html' ),
+                protocol: 'file',
+                slashes: true
+            } ) );
+
+            transitionWindow.webContents.on( 'did-finish-load',
+                function( event )
+                {
+                    transitionWindow.send( 'changeTransitionDetails-sendtransitiontowindow', componentName, transitionName );
+                } );
+
         } );
 
     // received from updateComponent.html's submission
-    ipcMain.on( 'changeComponentName-newnametomain',
+    ipcMain.on( 'changeComponentDetails-updatename',
         function( event, oldName, newName )
         {
-            // send old & new name to primary renderer
-            window.webContents.send( 'changeComponentName-renderer', oldName, newName );
+            // send information to primary renderer
+            window.webContents.send( 'changeComponentDetails-renderer', oldName, newName );
         } );
     // received from updatePlace.html's submit button
-    ipcMain.on( 'changePlaceName-newnametomain',
+    ipcMain.on( 'changePlaceDetails-updatename',
         function( event, componentName, oldName, newName )
         {
-            // send old & new name to primary renderer
-            window.webContents.send( 'changePlaceName-renderer', componentName, oldName, newName )
+            // send information to primary renderer
+            window.webContents.send( 'changePlaceDetails-renderer', componentName, oldName, newName )
+        } );
+    ipcMain.on( 'changeTransitionDetails-update',
+        function( event, componentName, oldName, args )
+        {
+            window.webContents.send( 'changeTransitionDetails-renderer', componentName, oldName, args );
+        } );
+
+    ipcMain.on( 'dependency-servicedataprompt',
+        function( event )
+        {
+            const options = {
+                buttons: [ 'Cancel', 'Service', 'Data' ],
+                title: 'Select Dependency Type',
+                message: 'Please select a type of dependency to create:'
+            }
+            let response = electron.dialog.showMessageBoxSync( options );
+            if( response == 0 )
+            {
+                response = 'cancel';
+            }
+            if( response == 1 )
+            {
+                response = 'service';
+            }
+            if( response == 2 )
+            {
+                response = 'data';
+            }
+
+            event.returnValue = response;
         } );
         
     ipcMain.on( 'openSimulatorWindow',
         function( )
         {
             Menu.setApplicationMenu( this.simulatorMenu )
-        } );
-
-    ipcMain.on( 'openDependencyTypeWindow',
-        function( event )
-        {
-            const { dialog, MenuItem } = require( 'electron' );
-            const options = {
-                // type: 'question',
-                buttons: [ 'Cancel', 'Service', 'Data' ],
-                title: 'Question',
-                message: 'Choose a dependency type'
-            };
-
-            // @todo: clean this up...?
-            var dependencyType
-            let response = dialog.showMessageBox( options );
-            switch( response )
-            {
-                case 0:
-                    dependencyType = 'Cancel'
-                    break;
-                case 1:
-                    dependencyType = 'Service';
-                    break;
-                case 2:
-                    dependencyType = 'Data';
-                    break;
-                default:
-                    dependencyType = 'Cancel';
-            }
-            event.returnValue = dependencyType;
         } );
 
     ipcMain.on( 'transition->main',

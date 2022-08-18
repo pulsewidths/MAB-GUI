@@ -1,5 +1,6 @@
 const Konva = require( 'Konva' );
-const { ipcRenderer } = require("electron");
+const { ipcRenderer } = require( 'electron' );
+const dialog = require( 'electron' );
 
 // mabGUI runs from the renderer process, called by index.html 
 class MabGUI
@@ -33,8 +34,6 @@ class MabGUI
             let place2 = this.assembly.components[ componentIndex ].addPlace( { x: 150, y: 250 } );
             
             let transition = this.assembly.components[ componentIndex ].addTransition( place1, place2 );
-            let dependency1 = this.assembly.components[ componentIndex ].addDependency( place1, 'data' );
-            let dependency2 = this.assembly.components[ componentIndex ].addDependency( transition, 'data' );
         }
 
 
@@ -63,19 +62,28 @@ class MabGUI
         let assembly = this.assembly;
         
         // received from driver.js (main process), which received it from updateComponent.html
-        ipcRenderer.on( 'changeComponentName-renderer',
+        ipcRenderer.on( 'changeComponentDetails-renderer',
             function( event, oldName, newName )
             {
-
-                assembly.getComponent( oldName ).name = newName;
-
+                let component = mabGUI.assembly.getComponent( oldName );
+                component.name = newName;
             } );
-
-        // received from driver.js (main process), which received it from updatePlace.thml
-        ipcRenderer.on( 'changePlaceName-renderer',
+        // received from driver.js (main process), which received it from updatePlace.html
+        ipcRenderer.on( 'changePlaceDetails-renderer',
             function( event, componentName, oldName, newName )
             {
-                assembly.getComponent( componentName ).findPlace( oldName ).name = newName;
+                let place = mabGUI.assembly.getComponent( componentName ).getPlace( oldName );
+                place.name = newName;
+            } );
+        // received from driver.js (main process), which received it from updateTransition.html
+        ipcRenderer.on( 'changeTransitionDetails-renderer',
+            function( event, componentName, oldName, args )
+            {
+                let transition = mabGUI.assembly.getComponent( componentName ).getTransition( oldName );
+                transition.name = args.name;
+                transition.func = args.func;
+                transition.minDuration = args.minDuration;
+                transition.maxDuration = args.maxDuration;
             } );
     }
 
@@ -93,6 +101,7 @@ class MabGUI
         this.deselectPlace( );
         this.deselectTransition( );
         this.deselectDependency( );
+        this.stage.batchDraw( );
     }
 
     selectPlace( place )
@@ -114,7 +123,6 @@ class MabGUI
         this.selectedPlace.shape.stroke( 'black' );
         this.selectedPlace.shape.strokeWidth( 1 );
         this.selectedPlace = null;
-        this.stage.batchDraw( );
 
     }
 
@@ -124,7 +132,6 @@ class MabGUI
         this.selectedTransition = transition;
         this.selectedTransition.shape.stroke( 'blue' );
         this.selectedTransition.shape.strokeWidth( 3 );
-        this.stage.batchDraw( );
     }
     
     deselectTransition( )
@@ -137,7 +144,6 @@ class MabGUI
         this.selectedTransition.shape.stroke( 'black' );
         this.selectedTransition.shape.strokeWidth( 1 );
         this.selectedTransition = null;
-        this.stage.batchDraw( );
     }
 
     selectDependency( dependency )
@@ -148,17 +154,16 @@ class MabGUI
 
         if( this.selectedDependency.source.type == 'transition' )
         {
-            var highlightShape = this.selectedDependency.stub;
+            var highlightShape = this.selectedDependency.innerSymbol;
         } else if( this.selectedDependency.source.type == 'place' )
         {
-            var highlightShape = this.selectedDependency.symbol;
+            var highlightShape = this.selectedDependency.outerSymbol;
         }
 
         highlightShape.opacity( 0.5 );
         highlightShape.stroke( 'blue' );
-        highlightShape.fill( 'white' );
+        highlightShape.fill( 'blue' );
         highlightShape.strokeWidth( 3 );
-        this.stage.batchDraw( );
 
     }
 
@@ -172,11 +177,11 @@ class MabGUI
 
         if( this.selectedDependency.source.type == 'transition' ) // use
         {
-            var highlightShape = this.selectedDependency.stub;
+            var highlightShape = this.selectedDependency.innerSymbol;
         }
         if( this.selectedDependency.source.type == 'place' ) // provide
         {
-            var highlightShape = this.selectedDependency.symbol;
+            var highlightShape = this.selectedDependency.outerSymbol;
         }
 
         highlightShape.stroke( 'black' );
@@ -192,7 +197,6 @@ class MabGUI
         }
 
         this.selectedDependency = null;
-        this.stage.batchDraw( );
 
     }
 
