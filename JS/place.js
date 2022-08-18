@@ -127,7 +127,7 @@ class Place
                     place.shape.strokeWidth( 3 );
                     place.shape.draw( );
 
-                    ipcRenderer.send( 'changePlaceName-createwindow', place.component.name, place.name );
+                    ipcRenderer.send( 'changePlaceDetails-createwindow', place.component.name, place.name );
                     
                 }
 
@@ -183,7 +183,6 @@ class Place
                         x: mousePos.x + 10,
                         y: mousePos.y + 10
                     } );
-
                     place.tooltip.text( place.component.name + '-' + place.name );
                     place.tooltip.show( );
 
