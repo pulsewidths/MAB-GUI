@@ -15,7 +15,6 @@ class Connection
 
         this.provide.connections.push( this );
         this.use.connections.push( this );
-
         this.provide.component.connections.provide.push( this );
         this.use.component.connections.use.push( this );
 
@@ -26,15 +25,17 @@ class Connection
 
         let midpoint = this.getMidpoint( );
 
+        let points = [ this.provide.selectSymbol.getAbsolutePosition( ).x + this.provideOffset - 5,
+            this.provide.selectSymbol.getAbsolutePosition( ).y,
+            midpoint.x,
+            this.provide.selectSymbol.getAbsolutePosition( ).y,
+            midpoint.x,
+            this.use.selectSymbol.getAbsolutePosition( ).y,
+            this.use.selectSymbol.getAbsolutePosition( ).x + this.useOffset,
+            this.use.selectSymbol.getAbsolutePosition( ).y ];
+
         this.shape = new Konva.Line( {
-            points: [ this.provide.stub.getAbsolutePosition( ).x + this.provideOffset,
-                      this.provide.stub.getAbsolutePosition( ).y,
-                      midpoint.x,
-                      this.provide.stub.getAbsolutePosition( ).y,
-                      midpoint.x,
-                      this.use.stub.getAbsolutePosition( ).y,
-                      this.use.stub.getAbsolutePosition( ).x + this.useOffset,
-                      this.use.stub.getAbsolutePosition( ).y ],
+            points: points,
             stroke: 'black', strokeWidth: 1,
             name: 'connection',
             lineCap: 'round', lineJoin: 'round'
@@ -59,8 +60,8 @@ class Connection
             name: 'group'
         })
 
-        this.provide.symbol.opacity( 1 );
-        this.use.stub.opacity( 1 );
+        this.provide.outerSymbol.opacity( 1 );
+        this.use.innerSymbol.opacity( 1 );
 
         this.group.add( this.shape );
         this.group.add( this.gate1 );
@@ -75,8 +76,8 @@ class Connection
 
         let updateShapes = this.updateShapes.bind( this );
 
-        this.provide.stub.on( 'xChange yChange', updateShapes ); // shape?
-        this.use.stub.on( 'xChange yChange', updateShapes ); // shape?
+        this.provide.selectSymbol.on( 'xChange yChange', updateShapes );
+        this.use.selectSymbol.on( 'xChange yChange', updateShapes );
         this.provide.component.group.on( 'xChange yChange', updateShapes  );
         this.use.component.group.on( 'xChange yChange', updateShapes );
 
@@ -84,17 +85,18 @@ class Connection
 
     updateShapes( )
     {
-
         let midpoint = this.getMidpoint( );
+        
+        let points = [ this.provide.selectSymbol.getAbsolutePosition( ).x + this.provideOffset - 5,
+            this.provide.selectSymbol.getAbsolutePosition( ).y,
+            midpoint.x,
+            this.provide.selectSymbol.getAbsolutePosition( ).y,
+            midpoint.x,
+            this.use.selectSymbol.getAbsolutePosition( ).y,
+            this.use.selectSymbol.getAbsolutePosition( ).x + this.useOffset,
+            this.use.selectSymbol.getAbsolutePosition( ).y ];
 
-        this.shape.setPoints( [ this.provide.stub.getAbsolutePosition( ).x + this.provideOffset,
-                                this.provide.stub.getAbsolutePosition( ).y,
-                                midpoint.x,
-                                this.provide.stub.getAbsolutePosition( ).y,
-                                midpoint.x,
-                                this.use.stub.getAbsolutePosition( ).y,
-                                this.use.stub.getAbsolutePosition( ).x + this.useOffset,
-                                this.use.stub.getAbsolutePosition( ).y ] );
+        this.shape.setPoints( points);
 
         this.gate1.setPoints( this.getPointsGate1( ) );
         this.gate2.setPoints( this.getPointsGate2( ) );
@@ -105,8 +107,9 @@ class Connection
     getMidpoint( )
     {
 
-        let x = ( this.provide.stub.getAbsolutePosition( ).x + this.provideOffset + this.use.stub.getAbsolutePosition( ).x + this.useOffset ) / 2;
-        let y = ( this.provide.stub.getAbsolutePosition( ).y + this.use.stub.getAbsolutePosition( ).y ) / 2;
+        let x = ( this.provide.selectSymbol.getAbsolutePosition( ).x + this.provideOffset + this.use.selectSymbol.getAbsolutePosition( ).x ) / 2;
+        let y = ( this.provide.selectSymbol.getAbsolutePosition( ).y + this.use.selectSymbol.getAbsolutePosition( ).y ) / 2;
+
 
         return { x: x, y: y };
 
@@ -119,11 +122,11 @@ class Connection
         let points = [ ];
         let midpoint = this.getMidpoint( );
         
-        if( this.provide.stub.getAbsolutePosition( ).y > this.use.stub.getAbsolutePosition( ).y ||
-            this.provide.stub.getAbsolutePosition( ).y < this.use.stub.getAbsolutePosition( ).y )
-        {
+        if( this.provide.selectSymbol.getAbsolutePosition( ).y > this.use.selectSymbol.getAbsolutePosition( ).y ||
+            this.provide.selectSymbol.getAbsolutePosition( ).y < this.use.selectSymbol.getAbsolutePosition( ).y )
+        { // for vertical connection
             points = [ midpoint.x - 15, midpoint.y + 5, midpoint.x + 15, midpoint.y + 5 ];
-        } else {
+        } else { // for horizontal connection
             points = [ midpoint.x - 5, midpoint.y - 15, midpoint.x - 5, midpoint.y + 15 ];
         }
 
@@ -136,13 +139,17 @@ class Connection
 
         let points = [ ];
         let midpoint = this.getMidpoint( );
-        if( this.provide.stub.getAbsolutePosition( ).y > this.use.stub.getAbsolutePosition( ).y ||
-            this.provide.stub.getAbsolutePosition( ).y < this.use.stub.getAbsolutePosition( ).y )
+
+        if( this.provide.selectSymbol.getAbsolutePosition( ).y > this.use.selectSymbol.getAbsolutePosition( ).y ||
+            this.provide.selectSymbol.getAbsolutePosition( ).y < this.use.selectSymbol.getAbsolutePosition( ).y )
         {
+            // for vertical connection
             points = [ midpoint.x - 15, midpoint.y - 5, midpoint.x + 15, midpoint.y - 5 ];
         } else {
+            // for horizontal connection
             points = [ midpoint.x + 5, midpoint.y - 15, midpoint.x + 5, midpoint.y + 15 ];
         }
+
         return points;
 
     }
