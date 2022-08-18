@@ -317,15 +317,6 @@ function initListeners( )
             Menu.setApplicationMenu( this.simulatorMenu )
         } );
 
-    ipcMain.on( 'transition->main',
-        function( event, args )
-        {
-            window.webContents.send( 'transition->renderer',
-            { component: transitionArgs.component, transition: transitionArgs.transition, oldName: transitionArgs.name,
-            name: args.name, oldFunc: transitionArgs.function, newFunc: args.function, newDurationMin: args.durationMin, newDurationMax: args.durationMax }
-            );
-        } );
-
     ipcMain.on( 'changeStubDetails',
         function( event, args )
         {
