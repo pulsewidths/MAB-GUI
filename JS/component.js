@@ -8,7 +8,7 @@ class Component
         this.name = name;
         this.index = mabGUI.assembly.components.length;
 
-        this.connections = { provide: [ ], use: [ ] };
+        this.connections = { provide: [ ], use: [ ] }; // @todo: is this necessary? could this just be a normal list?
         this.places = [ ];
         this.transitions = [ ];
         this.dependencies = [ ];
@@ -315,6 +315,7 @@ class Component
     }
 
     // @todo: should this possibly be in Assembly?
+    // @todo: bugs exist.
     validTransition( source, destination )
     {
 
@@ -444,11 +445,28 @@ class Component
         {
             this.connections.use[ 0 ].remove( );
         }
+        while( this.dependencies.length != 0 )
+        {
+            this.dependencies[ 0 ].remove( );
+        }
+        while( this.transitions.length != 0 )
+        {
+            this.transitions[ 0 ].remove( );
+        }
+        while( this.places.length != 0 )
+        {
+            this.places[ 0 ].remove( );
+        }
 
         let index = mabGUI.assembly.components.indexOf( this );
-        mabGUI.assembly.component.splice( index, 1 );
+        mabGUI.assembly.components.splice( index, 1 );
 
-        this.shape.group.destroy( );
+        this.tooltipLayer.destroy( );
+        mabGUI.stage.find( 'Transformer' ).destroy( ); // deselect
+
+        this.group.destroy( );
+
+        mabGUI.stage.batchDraw( );
 
     }
 

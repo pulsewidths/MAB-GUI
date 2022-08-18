@@ -307,6 +307,8 @@ class Place
 
         this.shape.destroy( );
 
+        mabGUI.stage.batchDraw( );
+
     }
 
 }
