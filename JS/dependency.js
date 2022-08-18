@@ -3,19 +3,18 @@ class Dependency {
     constructor( source, serviceData )
     {
 
-        this.type = 'dependency';
+        this.type = 'dependency'; // @todo: would typeof (or something similar) be able to make this variable redundant?
         this.name = 'Dependency_' + ( source.component.dependencies.length + 1 );
         this.index = source.component.dependencies.length + 1;
 
         this.source = source;
-        this.serviceData = serviceData; // service or data?
+        this.serviceData = serviceData; // service dependency v. data dependency
 
         this.component = source.component;
         this.connections = [];
 
         this.enabled = false; // @todo: ??
 
-        this.initOffset( );
         this.initKonva( );
         this.initTooltip( );
         this.initListeners( );
@@ -28,6 +27,12 @@ class Dependency {
     initKonva( )
     {
 
+        this.initOffset( );
+
+        this.group = new Konva.Group( {
+            name: 'dependencyGroup'
+        } );
+
         if( this.serviceData == 'service' )
         {
             this.initServiceKonva( );
@@ -37,85 +42,181 @@ class Dependency {
             this.initDataKonva( );
         }
 
+        if( this.source.type == 'place' ) // provide
+        {
+            this.outerSymbol.opacity( 0 );
+        }
+        else if( this.source.type == 'transition' ) // use
+        {
+            this.innerSymbol.opacity( 0 );
+        }
+
+        this.group.add( this.line );
+        this.group.add( this.stem );
+        this.group.add( this.innerSymbol );
+        this.group.add( this.outerSymbol );
+        this.group.add( this.selectSymbol );
+        this.component.group.add( this.group );
+
+        this.source.shape.moveToTop( );
+        this.selectSymbol.moveToTop( );
+
     }
 
     initServiceKonva( )
     {
 
-        if( this.source.type == 'transition' ) // use
-        {
-            // @todo: this naming... eugh
-            var anchor = this.source.selectShape
-            this.add = -20;
-            this.stubX = -15;
-
-        } else if( this.source.type == 'place' ) // provide
+        if( this.source.type == 'place' ) // provide
         {
             var anchor = this.source.shape;
-            this.add = 20;
-            this.stubX = 0;
+            this.symbolDistance = 0; // @todo: better name?
+        }
+        else if( this.source.type == 'transition' ) // use
+        {
+            var anchor = this.source.selectShape;
+            this.symbolDistance = -15;
         }
 
-        this.shape = new Konva.Line( {
+        this.line = new Konva.Line( {
             points: [ anchor.getX( ),
                       anchor.getY( ),
-                    ( this.component.shape.getX( ) + this.offset * this.component.shape.scaleX( ) ),
+                    ( this.component.shape.getX( ) + this.horizontalOffset ),
                       anchor.getY( ) + this.verticalOffset ],
             stroke: 'black', strokeWidth: 1,
-            name: 'dependency', tension: 0, dash: [ 10, 5 ], listening: true
+            name: 'dependency', dash: [ 10, 5 ], listening: true
         } );
-
         this.stem = new Konva.Line( {
-            points: [ this.component.shape.getX( ) + this.offset * this.component.shape.scaleX( ),
+            points: [ this.component.shape.getX( ) + this.horizontalOffset,
                       anchor.getY( ) + this.verticalOffset,
-                    ( this.component.shape.getX( ) + this.offset * this.component.shape.scaleX( ) ) + this.add,
+                    ( this.component.shape.getX( ) + this.horizontalOffset ) + this.stemLength,
                       anchor.getY( ) + this.verticalOffset ],
             stroke: 'black', strokeWidth: 1,
-            name: 'stem', tension: 0
+            name: 'stem'
         } );
 
-        this.stub = new Konva.Circle( {
-            name: 'stub',
-            x: this.shape.points( )[ 2 ] + this.add + this.stubX,
-            y: this.shape.points( )[ 3 ],
+        this.innerSymbol = new Konva.Circle( {
+            x: this.line.points( )[ 2 ] + this.stemLength + this.symbolDistance,
+            y: this.line.points( )[ 3 ],
             ShadowBlur: 1, radius: 8,
             stroke: 'black', strokeWidth: 1, fill: 'black'
         } );
-
-        this.symbol = new Konva.Arc( {
-            x: this.stub.getX( ),
-            y: this.stub.getY( ),
+        this.outerSymbol = new Konva.Arc( {
+            x: this.innerSymbol.getX( ),
+            y: this.innerSymbol.getY( ),
             innerRadius: 15, outerRadius: 16,
             angle: 180, rotation: 270,
             stroke: 'black', strokeWidth: 1,
         });
 
-        if( this.source.type == 'transition' ) // use
-        {
-            // showTransitionSelectionArea( this.source ); // @todo: ??
-            this.stub.opacity( 0 );
-        } else if( this.source.type == 'place' ) // provide
-        {
-            this.symbol.opacity( 0 );
-        }
-
-        this.group = new Konva.Group( {
-            name: 'dependencyGroup'
-        } );
-
-        this.group.add( this.stub );
-        this.group.add( this.symbol );
-        this.group.add( this.shape );
-        this.group.add( this.stem );
-        this.component.group.add( this.group );
-        this.group.moveToBottom( );
+        this.selectSymbol = this.innerSymbol; // circle included in icon; easy to click
 
     }
 
     initDataKonva( )
     {
 
+        if( this.source.type == 'place' ) // provide
+        {
+            var anchor = this.source.shape;
+            this.symbolsOffset = 0;
+        }
+        else if( this.source.type == 'transition' ) // use
+        {
+            var anchor = this.source.selectShape;
+            this.symbolsOffset = 0;
+        }
 
+        this.line = new Konva.Line( {
+            points: [ anchor.getX( ),
+                      anchor.getY( ),
+                      this.component.shape.getX( ) + this.horizontalOffset,
+                      anchor.getY( ) + this.verticalOffset ],
+            stroke: 'black', strokeWidth: 1,
+            name: 'dependency', dash: [ 10, 5 ], listening: true
+        } );
+        this.stem = new Konva.Line( {
+            points: [ this.component.shape.getX( ) + this.horizontalOffset,
+                      anchor.getY( ) + this.verticalOffset,
+                      this.component.shape.getX( ) + this.horizontalOffset + this.stemLength,
+                      anchor.getY( ) + this.verticalOffset ],
+                      stroke: 'black', strokeWidth: 1,
+                      name: 'stem'
+        } );
+
+        if( this.source.type == 'place' ) // provide
+        {
+
+            // invisible circle for selection
+            this.selectSymbol = new Konva.Circle( {
+                x: this.line.points( )[ 2 ] + this.stemLength + 5,
+                y: this.line.points( )[ 3 ],
+                ShadowBlue: 1, radius: 15,
+                stroke: 'black', strokeWidth: 1,
+                name: 'stub', opacity: 0
+            } );
+
+            this.innerSymbol = new Konva.Line( {
+                points: [ this.line.points( )[ 2 ] + this.stemLength - 5,
+                          this.line.points( )[ 3 ] + 5,
+                          this.line.points( )[ 2 ] + this.stemLength,
+                          this.line.points( )[ 3 ],
+                          this.line.points( )[ 2 ] + this.stemLength - 5,
+                          this.line.points( )[ 3 ] - 5 ],
+                stroke: 'black', strokeWidth: 2,
+                name: 'innerSymbol',
+                lineCap: 'round', lineJoin: 'round',
+                opacity: 1
+            } );
+            this.outerSymbol = new Konva.Line( {
+                points: [ this.line.points( )[ 2 ] + this.stemLength,
+                          this.line.points( )[ 3 ] + 10,
+                          this.line.points( )[ 2 ] + this.stemLength + 10,
+                          this.line.points( )[ 3 ],
+                          this.line.points( )[ 2 ] + this.stemLength,
+                          this.line.points( )[ 3 ] - 10 ],
+                stroke: 'black', strokeWidth: 1,
+                name: 'outerSymbol',
+                lineCap: 'round', lineJoin: 'round'
+            } );
+
+        } else if( this.source.type == 'transition' ) // use
+        {
+
+            // invisible circle for selection
+            this.selectSymbol = new Konva.Circle( {
+                x: this.line.points( )[ 2 ] + this.stemLength - 5,
+                y: this.line.points( )[ 3 ],
+                ShadowBlue: 1, radius: 15,
+                stroke: 'black', strokeWidth: 1,
+                name: 'stub', opacity: 0
+            } );
+
+            this.outerSymbol = new Konva.Line( {
+                points: [ this.line.points( )[ 2 ] + this.stemLength - 10,
+                          this.line.points( )[ 3 ] + 10,
+                          this.line.points( )[ 2 ] + this.stemLength,
+                          this.line.points( )[ 3 ],
+                          this.line.points( )[ 2 ] + this.stemLength - 10,
+                          this.line.points( )[ 3 ] - 10 ],
+                stroke: 'black', strokeWidth: 2,
+                name: 'outerSymbol',
+                lineCap: 'round', lineJoin: 'round'
+            } );
+            this.innerSymbol = new Konva.Line( {
+                points: [ this.line.points( )[ 2 ] + this.stemLength - 15,
+                          this.line.points( )[ 3 ] + 5,
+                          this.line.points( )[ 2 ] + this.stemLength - 10,
+                          this.line.points( )[ 3 ],
+                          this.line.points( )[ 2 ] + this.stemLength - 15,
+                          this.line.points( )[ 3 ] - 5 ],
+                stroke: 'black', strokeWidth: 1,
+                name: 'innerSymbol',
+                lineCap: 'round', lineJoin: 'round',
+                opacity: 1
+            } );
+        }
+
+        this.group.add( this.selectSymbol );
 
     }
 
@@ -124,11 +225,13 @@ class Dependency {
 
         if( this.source.type == 'transition' ) // use
         {
-            this.offset = 0;
+            this.horizontalOffset = 0;
+            this.stemLength = -20;
         }
         if( this.source.type == 'place' ) // provide
         {
-            this.offset = this.component.shape.getWidth( );
+            this.horizontalOffset = this.component.shape.getWidth( ) * this.component.shape.scaleX( );
+            this.stemLength = 20;
         }
 
         let verticalOffset;
@@ -174,54 +277,48 @@ class Dependency {
 
     initListeners( )
     {
-        this.initLeftClickListeners( );
-        this.initRightClickListeners( );
+
+        let leftClickListener = this.leftClickListener.bind( this );
+        let rightClickListener = this.rightClickListener.bind( this );
+
+        this.selectSymbol.on( 'click', leftClickListener );
+        this.selectSymbol.on( 'click', rightClickListener );
+
         this.initMovementListeners( );
-    }
-
-    initLeftClickListeners( )
-    {
-
-        let dependency = this;
-
-        this.stub.on( 'click',
-            function( event )
-            {
-                if( event.evt.button == 0 )
-                {
-                    if( mabGUI.selectedDependency == dependency )
-                    {
-                        mabGUI.deselectDependency( );
-                        return;
-                    }
-                    mabGUI.deselectDependency( );
-                    mabGUI.selectDependency( dependency );
-                }
-            } );
 
     }
 
-    initRightClickListeners( )
+    leftClickListener( event )
     {
 
-        let dependency = this;
-
-        this.stub.on( 'click',
-        function( event )
+        if( event.evt.button == 0 )
         {
-            if( event.evt.button == 2 )
+            if( mabGUI.selectedDependency == this )
             {
-                if( !mabGUI.selectedDependency || mabGUI.selectedDependency == dependency )
-                {
-                    // change dependency details!
-                    mabGUI.deselectDependency( );
-                }
-
-                mabGUI.assembly.addConnection( mabGUI.selectedDependency, dependency );
                 mabGUI.deselectDependency( );
-
+                return;
             }
-        } );
+            mabGUI.deselectDependency( );
+            mabGUI.selectDependency( this );
+        }
+
+    }
+
+    rightClickListener( event )
+    {
+
+        if( event.evt.button == 2 )
+        {
+            if( !mabGUI.selectedDependency || mabGUI.selectedDependency == this )
+            {
+                // change dependency details here!
+                mabGUI.deselectDependency( );
+            }
+
+            mabGUI.assembly.addConnection( mabGUI.selectedDependency, this );
+            mabGUI.deselectDependency( );
+
+        }
 
     }
 
@@ -240,7 +337,7 @@ class Dependency {
             var anchor = this.source.shape;
         }
 
-        this.stub.on( 'mousemove',
+        this.selectSymbol.on( 'mousemove',
             function( )
             {
                 let mousePos = mabGUI.stage.getPointerPosition( );
@@ -253,39 +350,96 @@ class Dependency {
                 mabGUI.stage.batchDraw( );
             } );
 
-        this.stub.on( 'mouseenter',
+        this.selectSymbol.on( 'mouseenter',
             function( )
             {
                 window.addEventListener( 'keydown', remove );
             } );
 
-        this.stub.on( 'mouseout',
+        this.selectSymbol.on( 'mouseout',
             function( )
             {
                 dependency.tooltip.hide( );
-                mabGUI.stage.batchDraw( );
                 window.removeEventListener( 'keydown', remove );
+                mabGUI.stage.batchDraw( );
             } );
 
         anchor.on( 'xChange yChange',
             function( )
             {
-                dependency.shape.setPoints( [ anchor.getX( ),
-                                              anchor.getY( ),
-                                              dependency.component.shape.getX( ) + dependency.offset * dependency.component.shape.scaleX( ),
-                                              anchor.getY( ) + dependency.verticalOffset ] );
-                dependency.stem.setPoints( [ dependency.component.shape.getX( ) + dependency.offset * dependency.component.shape.scaleX( ),
-                                             anchor.getY( ) + dependency.verticalOffset,
-                                             ( dependency.component.shape.getX( ) + dependency.offset * dependency.component.shape.scaleX( ) ) + dependency.add,
+
+                dependency.line.setPoints( [ anchor.getX( ),
+                                             anchor.getY( ),
+                                             dependency.component.shape.getX( ) + dependency.horizontalOffset,
                                              anchor.getY( ) + dependency.verticalOffset ] );
-                dependency.stub.position( {
-                    x: dependency.shape.points( )[ 2 ] + dependency.add + dependency.stubX,
-                    y: dependency.shape.points( )[ 3 ]
-                } );
-                dependency.symbol.position( {
-                    x: dependency.stub.getX( ),
-                    y: dependency.stub.getY( )
-                } );
+                dependency.stem.setPoints( [ dependency.component.shape.getX( ) + dependency.horizontalOffset,
+                                             anchor.getY( ) + dependency.verticalOffset,
+                                             ( dependency.component.shape.getX( ) + dependency.horizontalOffset ) + dependency.stemLength,
+                                             anchor.getY( ) + dependency.verticalOffset ] );
+
+                if( dependency.serviceData == 'data' )
+                {
+
+                    if( dependency.source.type == 'transition' )
+                    {
+                        dependency.selectSymbol.position( {
+                            x: dependency.line.points( )[ 2 ] + dependency.stemLength - 5,
+                            y: dependency.line.points( )[ 3 ],
+                        } );
+                        dependency.outerSymbol.setPoints( [ dependency.line.points( )[ 2 ] + dependency.stemLength - 10,
+                                                    dependency.line.points( )[ 3 ] + 10,
+                                                    dependency.line.points( )[ 2 ] + dependency.stemLength,
+                                                    dependency.line.points( )[ 3 ],
+                                                    dependency.line.points( )[ 2 ] + dependency.stemLength - 10,
+                                                    dependency.line.points( )[ 3 ] - 10 ] );
+                        dependency.innerSymbol.setPoints( [ dependency.line.points( )[ 2 ] + dependency.stemLength - 15,
+                                                    dependency.line.points( )[ 3 ] + 5,
+                                                    dependency.line.points( )[ 2 ] + dependency.stemLength - 10,
+                                                    dependency.line.points( )[ 3 ],
+                                                    dependency.line.points( )[ 2 ] + dependency.stemLength - 15,
+                                                    dependency.line.points( )[ 3 ] - 5 ] );
+                    } else { // place
+                        dependency.selectSymbol.position( {
+                            x: dependency.line.points( )[ 2 ] + dependency.stemLength + 5,
+                            y: dependency.line.points( )[ 3 ]
+                        } );
+                        dependency.innerSymbol.setPoints( [ dependency.line.points( )[ 2 ] + dependency.stemLength - 5,
+                                                    dependency.line.points( )[ 3 ] + 5,
+                                                    dependency.line.points( )[ 2 ] + dependency.stemLength,
+                                                    dependency.line.points( )[ 3 ],
+                                                    dependency.line.points( )[ 2 ] + dependency.stemLength - 5,
+                                                    dependency.line.points( )[ 3 ] - 5 ] );
+                        dependency.outerSymbol.setPoints( [ dependency.line.points( )[ 2 ] + dependency.stemLength,
+                                                    dependency.line.points( )[ 3 ] + 10,
+                                                    dependency.line.points( )[ 2 ] + dependency.stemLength + 10,
+                                                    dependency.line.points( )[ 3 ],
+                                                    dependency.line.points( )[ 2 ] + dependency.stemLength,
+                                                    dependency.line.points( )[ 3 ] - 10 ] );
+
+                    }
+
+                } else if( dependency.serviceData == 'service' )
+                {
+
+                    dependency.innerSymbol.position( {
+                        x: dependency.line.points( )[ 2 ] + dependency.stemLength + dependency.symbolDistance,
+                        y: dependency.line.points( )[ 3 ]
+                    } );
+                    dependency.outerSymbol.position( {
+                        x: dependency.innerSymbol.getX( ),
+                        y: dependency.innerSymbol.getY( )
+                    } );
+
+                }
+
+                if( dependency.innerSymbol != dependency.selectSymbol )
+                {
+                    dependency.selectSymbol.position( {
+                        x: dependency.line.points( )[ 2 ] + dependency.stemLength,
+                        y: dependency.line.points( )[ 3 ]
+                    } );
+                }
+
             } );
 
     }
@@ -337,180 +491,6 @@ function addNewDataDependency(component, source_element, source_obj, component_o
     var data_symbol_use;
 
     var verticalOffset;
-
-    // provide connection going right of a place
-    if(source_obj.type == 'Place'){
-        // create the dependency object
-        var dependency_obj = new Dependency('DATA_PROVIDE', "Dependency_" + index);
-        component_obj.dependency_list.push(dependency_obj);
-        offset = component.getWidth();
-        add = 20;
-        stub_x = -5;
-        dependency_name = dependency_obj.type + " Provide Dependency from " + source_obj.name;
-        // set vertical offset for dependency port
-        verticalOffset = getVerticalOffset(source_obj);
-    } else if (source_obj.type == 'Transition') {
-        // create the dependency object
-        var dependency_obj = new Dependency('DATA_USE', "Dependency_" + index);
-        component_obj.dependency_list.push(dependency_obj);
-        // use connection going left of a transition
-        offset = 0;
-        add = -20;
-        stub_x = 0;
-        dependency_name = dependency_obj.type + " Use Dependency from " + source_obj.name;
-        // set vertical offset for dependency port
-        verticalOffset = getVerticalOffset(source_obj);
-        // toggle transition selection area opacity
-        showTransitionSelectionArea(source_obj);
-    };
-
-    // set index
-    dependency_obj.index = index;
-
-    // set source obj of dependency stub
-    dependency_obj.source_obj = source_obj;
-    // add dependency obj to source_obj dep list
-    source_obj.dependency_obj_list.push(dependency_obj);
-
-    // increment source obj dependency count
-    source_obj.dependency_count++;
-
-    dependency_obj.component_obj = component_obj;
-
-    var dependency = new Konva.Line({
-        points: [source_element.getX(), source_element.getY(), (component.getX() + offset * component.scaleX()), source_element.getY() + verticalOffset],
-        stroke: 'black',
-        strokeWidth: 1,
-        name: 'dependency',
-        tension: 0,
-        dash: [10, 5],
-        listening: true
-    });
-
-    var stem = new Konva.Line({
-        points: [component.getX() + offset * component.scaleX(), source_element.getY() + verticalOffset, (component.getX() + offset * component.scaleX()) + add, source_element.getY() + verticalOffset],
-        stroke: 'black',
-        strokeWidth: 1,
-        name: 'stem',
-        tension: 0,
-    });
-
-    // create a new dependency_group
-    var dependency_group = new Konva.Group({
-        name: 'dependency_group'
-    });
-
-    // add dependency (dashed line) and stem to dependency group
-    dependency_group.add(dependency);
-    dependency_group.add(stem);
-
-    // stub for provide dependency
-    if(source_obj.type == 'Place'){
-        // Data type
-        // make invisible circle for hover
-        stub = getDataStubHover();
-        data_stub_provide = getDataStubProvide();
-        // symbol is invisbile until connection has been established
-        data_symbol_provide = getDataSymbolProvide();
-        data_symbol_provide.opacity(0);
-        dependency_obj.dep_symbol_konva = data_symbol_provide;
-        dependency_obj.dep_stub_konva = stub;
-        // add all to dependency group
-        dependency_group.add(stub);
-        dependency_group.add(data_stub_provide);
-        dependency_group.add(data_symbol_provide);
-
-    }
-    else if(source_obj.type == 'Transition') {
-        // invisible stub for selection
-        stub = getDataStubHover();
-        data_stub_use = getDataStubUse();
-        data_stub_use.opacity(0);
-        data_symbol_use = getDataSymbolUse();
-        dependency_obj.dep_symbol_konva = data_symbol_use;
-        dependency_obj.dep_stub_konva = stub;
-        dependency_obj.dep_stub_use_konva = data_stub_use;
-        // add all to dependency group
-        dependency_group.add(stub);
-        dependency_group.add(data_stub_use);
-        dependency_group.add(data_symbol_use);
-    };
-
-    function getDataStubHover(){
-        var stub = new Konva.Circle({
-            x: dependency.points()[2] + add + stub_x,
-            y: dependency.points()[3],
-            radius: 8,
-            stroke: 'black',
-            strokeWidth: 1,
-            name: 'stub',
-            ShadowBlur: 1,
-            opacity: 0
-        });
-        return stub;
-    }
-
-    function getDataStubProvide(){
-        var stub = new Konva.Line({
-            points: [(dependency.points()[2] + add) - 5, dependency.points()[3] + 5,
-                     (dependency.points()[2] + add), dependency.points()[3],
-                     (dependency.points()[2] + add) - 5, dependency.points()[3] - 5],
-            stroke: 'black',
-            strokeWidth: 2,
-            name: 'stub',
-            lineCap: 'round',
-            lineJoin: 'round',
-            tension : 0,
-            opacity: 1
-        });
-        return stub;
-    }
-
-    function getDataStubUse(){
-        var DataStubUse = new Konva.Line({
-            points: [(dependency.points()[2] + add) - 15, dependency.points()[3] + 5,
-                     (dependency.points()[2] + add) - 10, dependency.points()[3],
-                     (dependency.points()[2] + add) - 15, dependency.points()[3] - 5],
-            stroke: 'black',
-            strokeWidth: 1,
-            name: 'stub',
-            lineCap: 'round',
-            lineJoin: 'round',
-            tension : 0,
-            opacity: 1
-        });
-        return DataStubUse;
-    }
-
-    function getDataSymbolProvide(){
-        var DataSymbolProvide = new Konva.Line({
-            points: [(dependency.points()[2] + add), dependency.points()[3] + 10,
-                     (dependency.points()[2] + add) + 10, dependency.points()[3],
-                     (dependency.points()[2] + add), dependency.points()[3] - 10],
-            stroke: 'black',
-            strokeWidth: 1,
-            name: 'DataSymbolProvide',
-            lineCap: 'round',
-            lineJoin: 'round',
-            tension : 0
-        });
-        return DataSymbolProvide;
-    }
-
-    function getDataSymbolUse(){
-        var DataSymbolUse = new Konva.Line({
-            points: [(dependency.points()[2] + add) - 10, dependency.points()[3] + 10,
-                     (dependency.points()[2] + add), dependency.points()[3],
-                     (dependency.points()[2] + add) - 10, dependency.points()[3] - 10],
-            stroke: 'black',
-            strokeWidth: 2,
-            name: 'DataSymbolUse',
-            lineCap: 'round',
-            lineJoin: 'round',
-            tension : 0
-        });
-        return DataSymbolUse;
-    }
 
     // tooltip to display name of object
     var tooltip = new Konva.Text({
