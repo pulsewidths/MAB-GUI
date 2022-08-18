@@ -20,10 +20,10 @@
             const submit = document.getElementById("submit");
             let oldName = null;
 
-            ipcRenderer.on( 'changeComponentName-oldnametonewwindow',
-                function( event, componentName )
+            ipcRenderer.on( 'changeComponentDetails-sendcomponenttowindow',
+                function( event, componentNameArg )
                 {
-                    oldName = componentName;
+                    oldName = componentNameArg;
                 } );
 
             submit.addEventListener( 'click',
@@ -34,7 +34,7 @@
                     const newName = document.querySelector('#componentName').value.replace(/ /g,"_");
 
                     // once submitted, send old & new name to driver.js (main process)
-                    ipcRenderer.send( 'changeComponentName-newnametomain', oldName, newName );
+                    ipcRenderer.send( 'changeComponentDetails-updatename', oldName, newName );
 
                     window.close( );
                 } );
