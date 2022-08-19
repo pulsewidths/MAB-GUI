@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+
+        <meta name="Change Stub Details" charset="utf-8">
+
+    </head>
+
+    <body>
+        <p>Please enter the stub's new name:</p>
+        New Stub Name: <input type="text" name="dependency_name" id="dependency_name" autofocus><br><br>
+
+        <button id="submit">Change Details</button>
+
+        <script>
+
+            let ipcRenderer = require( 'electron' ).ipcRenderer;
+
+            const submit = document.getElementById("submit");
+
+            let componentName = null;
+            let dependencyName = null;
+
+            ipcRenderer.on( 'changeDependencyDetails-senddependencytowindow',
+                function( event, componentNameArg, dependencyNameArg )
+                {
+                    componentName = componentNameArg;
+                    dependencyName = dependencyNameArg;
+                } );
+
+            submit.addEventListener('click',
+                function( event )
+                {
+
+                    event.preventDefault();
+
+                    const newName = document.querySelector('#dependency_name').value.replace(/ /g,"_");
+
+                    ipcRenderer.send('changeDependencyDetails-updatename', componentName, dependencyName, newName );
+
+                    window.close();
+
+                });
+            </script>
+
+    </body>
+</html>

@@ -279,11 +279,9 @@ class Dependency {
     {
 
         let leftClickListener = this.leftClickListener.bind( this );
-        let rightClickListener = this.rightClickListener.bind( this );
-
         this.selectSymbol.on( 'click', leftClickListener );
-        this.selectSymbol.on( 'click', rightClickListener );
 
+        this.initRightClickListeners( );
         this.initMovementListeners( );
 
     }
@@ -304,21 +302,26 @@ class Dependency {
 
     }
 
-    rightClickListener( event )
+    initRightClickListeners( )
     {
+        let dependency = this;
 
-        if( event.evt.button == 2 )
-        {
-            if( !mabGUI.selectedDependency || mabGUI.selectedDependency == this )
+        this.selectSymbol.on( 'click',
+            function( event )
             {
-                // change dependency details here!
-                mabGUI.deselectDependency( );
-            }
-
-            mabGUI.assembly.addConnection( mabGUI.selectedDependency, this );
-            mabGUI.deselectDependency( );
-
-        }
+                if( event.evt.button == 2 )
+                {
+                    if( !mabGUI.selectedDependency || mabGUI.selectedDependency == dependency )
+                    {
+                        mabGUI.deselectDependency( );
+                        ipcRenderer.send( 'changeDependencyDetails-createwindow',
+                                        dependency.component.name, dependency.name );
+                        return;
+                    }
+                    mabGUI.assembly.addConnection( mabGUI.selectedDependency, dependency );
+                    mabGUI.deselectDependency( );
+                }
+            } );
 
     }
 
@@ -454,14 +457,37 @@ class Dependency {
                 return;
             }
             
-            if( !confirm( 'Are you sure you want to delete this Transition?' ) )
+            if( !confirm( 'Are you sure you want to delete this dependency?' ) )
             {
                 return;
             }
 
         }
 
-        // ...remove!
+        while( this.connections.length != 0 )
+        {
+            this.connections[ 0 ].remove( );
+        }
+
+        mabGUI.selectedDependency = null;
+
+        let index = this.source.dependencies.indexOf( this );
+        this.source.dependencies.splice( index, 1 );
+        index = this.component.dependencies.indexOf( this );
+        this.component.dependencies.splice( index, 1 );
+
+        this.tooltip.destroy( );
+        this.line.destroy( );
+        this.stem.destroy( );
+        this.innerSymbol.destroy( );
+        this.outerSymbol.destroy( );
+        this.group.destroy( );
+
+        let remove = this.remove.bind( this );
+        window.removeEventListener( 'keydown', remove );
+
+        mabGUI.stage.batchDraw( );
+
 
     }
 

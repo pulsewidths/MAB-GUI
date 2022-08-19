@@ -5,8 +5,6 @@ const Konva = require( 'Konva' );
 const url = require( 'url' );
 const path = require( 'path' );
 
-const Component = require( './JS/component.js' );
-
 const pluginManager = require( './JS/pluginManager.js' ); // @todo: change filename
 
 // driver.js is ran in the main process (as opposed to the renderer)
@@ -132,7 +130,7 @@ function initDeveloperMenu( )
                     label: 'Toggle DevTools',
                     // dev tools + hotkey
                     accelerator:
-                        process.platform == 'darwin' ? 'Commangs+I' : 'Ctrl+I',
+                        process.platform == 'darwin' ? 'Command+I' : 'Ctrl+I',
                         click( item, focusedWindow )
                         {
                             focusedWindow.toggleDevTools( );
@@ -166,29 +164,26 @@ function initPlugins( )
             pluginsMenuIndex++;
 
     }
-    
-    // populate from pluginManager.
-    var currentPluginNum = 0; // @todo: better name?
-    while( currentPluginNum < pluginManager[ 0 ].length ) // @todo: what is this array structure? @todo: change name of pluginManager elsewhere.
+
+    for( let pluginIndex = 0; pluginIndex < pluginManager.length; pluginIndex++ )
     {
 
-        const plugin = new electron.MenuItem
-        ( {
-            label: pluginManager[ 0 ][ currentPluginNum ],
-            accelerator: 'CmdOrCtrl+' + currentPluginNum, // @todo: increment by one? @todo: why is this accelerator format different than above?
-            driverPath: pluginManager[ 1 ][ currentPluginNum ],
-            pluginNumber: currentPluginNum,
-            message: pluginManager[ 0 ][ currentPluginNum ].toLocaleLowerCase( ).replace( / /g, '_' ),
+        let plugin = pluginManager[ pluginIndex ];
+
+        const pluginEntry = new electron.MenuItem (
+            { label: plugin.name,
+              accelerator: 'CmdOrCtrl' + ( pluginIndex + 1 ),
+              driverPath: plugin.path,
+              pluginNumber: pluginIndex,
+              message: plugin.name.toLocaleLowerCase( ).replace( / /g, '_' ),
                 click( MenuItem )
                 {
                     window.webContents.send( MenuItem.message );
-                    console.log( 'The ' + MenuItem.label + ' plugin has been activated.' );
                 }
-        } );
+            }
+        )
 
-        mainMenu.items[ pluginsMenuIndex ].submenu.append( plugin );
-
-        currentPluginNum++;
+        mainMenu.items[ pluginsMenuIndex ].submenu.append( pluginEntry );
 
     }
 
@@ -265,6 +260,29 @@ function initListeners( )
                 } );
 
         } );
+        ipcMain.on( 'changeDependencyDetails-createwindow',
+            function( event, componentName, dependencyName )
+            {
+    
+                var dependencyWindow = new BrowserWindow( 
+                    {
+                        width: 350, height: 200,
+                        webPreferences: { nodeIntegration: true }
+                    } );
+    
+                dependencyWindow.loadURL( url.format( {
+                    pathname: path.join( __dirname, './HTML/updateDependency.html' ),
+                    protocol: 'file',
+                    slashes: true
+                } ) );
+    
+                dependencyWindow.webContents.on( 'did-finish-load',
+                    function( event )
+                    {
+                        dependencyWindow.send( 'changeDependencyDetails-senddependencytowindow', componentName, dependencyName );
+                    } );
+    
+            } );
 
     // received from updateComponent.html's submission
     ipcMain.on( 'changeComponentDetails-updatename',
@@ -284,6 +302,11 @@ function initListeners( )
         function( event, componentName, oldName, args )
         {
             window.webContents.send( 'changeTransitionDetails-renderer', componentName, oldName, args );
+        } );
+    ipcMain.on( 'changeDependencyDetails-updatename',
+        function( event, componentName, oldName, newName )
+        {
+            window.webContents.send( 'changeDependencyDetails-renderer', componentName, oldName, newName );
         } );
 
     ipcMain.on( 'dependency-servicedataprompt',
@@ -310,29 +333,11 @@ function initListeners( )
 
             event.returnValue = response;
         } );
-        
+
     ipcMain.on( 'openSimulatorWindow',
         function( )
         {
             Menu.setApplicationMenu( this.simulatorMenu )
-        } );
-
-    ipcMain.on( 'changeStubDetails',
-        function( event, args )
-        {
-            stubArgs = args;
-            var stubWindow = new BrowserWindow( { width: 350, height: 200 } );
-            stubWindow.loadURL( url.format( {
-                pathname: path.join( __dirname, './HTML/changeStubDetails.html '),
-                protocol: 'file:',
-                slashes: true
-            } ) );
-        } );
-
-    ipcMain.on( 'stub->main',
-        function( args )
-        {
-            window.webContents.send( 'stub->renderer', {component: stubArgs.component, oldName: stubArgs.stub, newName: args.name } );
         } );
 
     ipcMain.on( 'openUserManualWindow',
