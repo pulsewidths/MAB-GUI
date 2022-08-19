@@ -85,6 +85,12 @@ class MabGUI
                 transition.minDuration = args.minDuration;
                 transition.maxDuration = args.maxDuration;
             } );
+        ipcRenderer.on( 'changeDependencyDetails-renderer',
+            function( event, componentName, oldName, newName )
+            {
+                let dependency = mabGUI.assembly.getComponent( componentName).getDependency( oldName );
+                dependency.name = newName;
+            } );
     }
 
     static snapCoords( pos )
@@ -260,10 +266,10 @@ class Assembly
         for( let componentIndex = 0; componentIndex < this.components.length; componentIndex++ )
         {
             let component = this.components[ componentIndex ];
-            for( let connectionIndex = 0; connectionIndex < component.connections.provide.length; connectionIndex++ )
+            for( let connectionIndex = 0; connectionIndex < component.connections.length; connectionIndex++ )
             {
-                let connection = component.connections.provide[ connectionIndex ];
-                console.log( connection );
+                let connection = component.connections[ connectionIndex ];
+
                 if( connection.provide == provide && connection.use == use )
                 {
                     return connection;

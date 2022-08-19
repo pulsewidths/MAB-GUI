@@ -8,7 +8,7 @@ class Component
         this.name = name;
         this.index = mabGUI.assembly.components.length;
 
-        this.connections = { provide: [ ], use: [ ] }; // @todo: is this necessary? could this just be a normal list?
+        this.connections = [ ];
         this.places = [ ];
         this.transitions = [ ];
         this.dependencies = [ ];
@@ -256,6 +256,17 @@ class Component
         }
     }
 
+    getDependency( dependencyName )
+    {
+        for( let index = 0; index < this.dependencies.length; index++ )
+        {
+            if( this.dependencies[ index ].name == dependencyName )
+            {
+                return this.dependencies[ index ];
+            }
+        }
+    }
+
     addPlace( pos )
     {
 
@@ -268,7 +279,6 @@ class Component
 
     }
 
-    // @todo: prompt w/ IPC
     addDependency( source )
     {
 
@@ -314,7 +324,6 @@ class Component
 
     }
 
-    // @todo: should this possibly be in Assembly?
     // @todo: bugs exist.
     validTransition( source, destination )
     {
@@ -430,20 +439,16 @@ class Component
                 return;
             }
             
-            if( !confirm( 'Are you sure you want to delete this Component?' ) )
+            if( !confirm( 'Are you sure you want to delete this component?' ) )
             {
                 return;
             }
 
         }
 
-        while( this.connections.provide.length != 0 )
+        while( this.connections.length != 0 )
         {
-            this.connections.provide[ 0 ].remove( );
-        }
-        while( this.connections.use.length != 0 )
-        {
-            this.connections.use[ 0 ].remove( );
+            this.connections[ 0 ].remove( );
         }
         while( this.dependencies.length != 0 )
         {
