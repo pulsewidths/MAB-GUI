@@ -139,12 +139,13 @@ class Transition
             function( event )
             {
 
-                transition.shape.stroke( 'blue' );
-                transition.shape.strokeWidth( 3 );
-                transition.shape.draw( );
-
-                ipcRenderer.send( 'changeTransitionDetails-createwindow',
-                                transition.component.name, transition.name );
+                if( event.evt.button == 2 && mabGUI.selectedTransition == null )
+                {
+                    mabGUI.deselectTransition( );
+    
+                    ipcRenderer.send( 'changeTransitionDetails-createwindow',
+                                    transition.component.name, transition.name );
+                }
 
             } );
 
@@ -290,7 +291,7 @@ class Transition
                 return;
             }
             
-            if( !confirm( 'Are you sure you want to delete this Transition?' ) )
+            if( !confirm( 'Are you sure you want to delete this transition?' ) )
             {
                 return;
             }
