@@ -13,7 +13,7 @@ class Dependency {
         this.component = source.component;
         this.connections = [];
 
-        this.enabled = false; // @todo: ??
+        this.enabled = false;
 
         this.initKonva( );
         this.initTooltip( );
