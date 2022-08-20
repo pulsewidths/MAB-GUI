@@ -18,6 +18,8 @@ class Connection
         this.provide.component.connections.push( this );
         this.use.component.connections.push( this );
 
+        mabGUI.assembly.connections.push( this );
+
     }
 
     initKonva( )
@@ -168,6 +170,9 @@ class Connection
 
         index = this.use.component.connections.indexOf( this );
         this.use.component.connections.splice( index, 1 );
+
+        index = mabGUI.assembly.connections.indexOf( this );
+        mabGUI.assembly.connections.splice( index, 1 );
 
         this.provide.outerSymbol.opacity( 0 );
         this.use.innerSymbol.opacity( 0 );
