@@ -1,210 +1,182 @@
-// NOTE: The variables must have unique names, particular to the plugin
-// or else the plugin will not work
+const electron = require( 'electron' );
+var app = electron.remote;
+var dialog = app.dialog;
 
-const sa_electron = require('electron');
-const sa_ipcRenderer = sa_electron.ipcRenderer;
-var sa_fs = require('fs'); // Load the File System to execute our common tasks (CRUD)
-var sa_app = sa_electron.remote;
-var sa_dialog = sa_app.dialog;
-var sa_comp_list = [];
-var sa_yaml = require('js-yaml');
+var yaml = require('js-yaml');
 
-sa_ipcRenderer.on('save_assembly', function() {
+var fs = require('fs');
 
-    saveAssembly();
-    return;
+function saveAssembly( mabGUI )
+{
 
-});
+    let saveableComponents = saveComponents( mabGUI.assembly.components );
+    let saveableConnections = saveConnections( mabGUI.assembly.connections );
+    let saveableList = [ saveableComponents, saveableConnections ];
 
-function saveAssembly() {
+    let saveContent = yaml.safeDump( saveableList );
 
-    var save_comp_list = saveComponents(component_list);
-    var save_conn_list = saveConnections(connection_list);
-    var save_list = [save_comp_list, save_conn_list];
+    fileName = dialog.showSaveDialogSync(
+        { defaultPath: "~/*.yaml",
+          filters: [ { name: 'yaml', extensions: ['yaml'] } ]
+        } );
 
-    var saveContent = sa_yaml.safeDump(save_list);
-
-    fileName = sa_dialog.showSaveDialog( {
-        defaultPath: "~/*.yaml",
-        filters: [ { name: 'yaml', extensions: ['yaml'] } ]
-    } );
-
-    if (fileName === undefined) {
-        console.log("You didn't save a file.");
+    if ( fileName === undefined )
+    {
         return;
     }
 
-    sa_fs.writeFileSync(fileName, saveContent);
-};
+    fs.writeFileSync( fileName, saveContent );
 
-function saveComponents(component_list) {
+}
 
-    var save_comp_list = [];
+function saveComponents( components )
+{
+
+    let saveableComponents = [];
 
     // saving each component
-    for(var i = 0; i < component_list.length; i++) {
+    for( let componentIndex = 0; componentIndex < components.length; componentIndex++ )
+    {
 
-        current_component = component_list[i];
-        save_component_obj = componentToSaveObj(current_component);
-        save_comp_list[i] = save_component_obj;
+        let component = components[ componentIndex ];
+        let saveableComponent  = componentToSaveObj( component );
+        saveableComponents.push( saveableComponent );
 
     }
 
-    return save_comp_list;
+    return saveableComponents;
 
 }
 
-function saveConnections(connection_list) {
+function saveConnections( connections )
+{
 
-        var save_conn_list = [];
+        let saveableConnections = [];
 
         // saving each component
-        for(var i = 0; i < connection_list.length; i++) {
-
-            current_connection = connection_list[i];
-            save_connection_obj = connectionToSaveObj(current_connection);
-            save_conn_list[i] = save_connection_obj;
-
+        for( let connectionIndex = 0; connectionIndex < connections.length; connectionIndex++ )
+        {
+            let connection = connections[ connectionIndex ];
+            let saveableConnection = connectionToSaveObj( connection );
+            saveableConnections.push( saveableConnection );
         }
 
-        return save_conn_list;
+        return saveableConnections;
 
 }
 
-function componentToSaveObj(component) {
+function componentToSaveObj( component )
+{
 
-    save_place_list = [];
-    save_transition_list = [];
-    save_dependency_list = [];
+    let saveablePlaces = [];
+    let saveableTransitions = [];
+    let saveableDependencies = [];
 
     // saving each place in a component
-    for(var i = 0; i < component.place_list.length; i++) {
-        current_place = component.place_list[i];
-        save_place_obj = placeToSaveObj(current_place);
-        save_place_list[i] = save_place_obj;
+    for( let placeIndex = 0; placeIndex < component.places.length; placeIndex++ )
+    {
+        let place = component.places[ placeIndex ];
+        let saveablePlace = placeToSaveObj( place );
+        saveablePlaces.push( saveablePlace );
     }
 
     // saving each transition in a component
-    for(var i = 0; i < component.transition_list.length; i++) {
-        current_transition = component.transition_list[i];
-        save_transition_obj = transitionToSaveObj(current_transition);
-        save_transition_list[i] = save_transition_obj;
+    for( let transitionIndex = 0; transitionIndex < component.transitions.length; transitionIndex++ )
+    {
+        let transition = component.transitions[ transitionIndex ];
+        let saveableTransition = transitionToSaveObj( transition );
+        saveableTransitions.push( saveableTransition );
     }
 
     // saving each dependency into a component
-    for(var i = 0; i < component.dependency_list.length; i++) {
-        current_dependency = component.dependency_list[i];
-        save_dependency_obj = dependencyToSaveObj(current_dependency);
-        save_dependency_list[i] = save_dependency_obj;
+    for( let dependencyIndex = 0; dependencyIndex < component.dependencies.length; dependencyIndex++ )
+    {
+        let dependency = component.dependencies[ dependencyIndex ];
+        let saveableDependency = dependencyToSaveObj( dependency );
+        saveableDependencies.push( saveableDependency );
     }
 
     return {
         type: component.type,
         name: component.name,
-        place_list: save_place_list,
-        transition_list: save_transition_list,
-        transition_dictionary: component.transition_dictionary,
-        dependency_list: save_dependency_list,
-        posX: component.konva_component.getAbsolutePosition().x,
-        posY: component.konva_component.getAbsolutePosition().y,
-        scaleX: component.konva_component.scaleX(),
-        scaleY: component.konva_component.scaleY()
+        places: saveablePlaces,
+        transitions: saveableTransitions,
+        dependencies: saveableDependencies,
+        posX: component.shape.getAbsolutePosition().x,
+        posY: component.shape.getAbsolutePosition().y,
+        scaleX: component.shape.scaleX(),
+        scaleY: component.shape.scaleY()
     };
 
-};
+}
 
-function placeToSaveObj(place, transitions=true) {
-
-    save_transition_outbound_list = [];
-    save_transition_inbound_list = [];
-
-    if(transitions) {
-
-        for(var i = 0; i < place.transition_outbound_list.length; i++) {
-            transition = place.transition_outbound_list[i];
-            save_transition_obj = transitionToSaveObj(transition);
-            save_transition_outbound_list[i];
-        }
-
-        for(var i = 0; i < place.transition_inbound_list.length; i++) {
-            transition = place.transition_inbound_list[i];
-            save_transition_obj = transitionToSaveObj(transition);
-            save_transition_inbound_list[i];
-        }
-    }
+function placeToSaveObj( place )
+{
 
     return {
         type: place.type,
         name: place.name,
         index: place.index,
-        transition_count: place.transition_count,
-        dependency_count: place.dependency_count,
-        dependency: place.dependency,
-        dependency_type: place.dependency_type,
-        transition_outbound_list: save_transition_outbound_list,
-        transition_inbound_list: save_transition_inbound_list,
-        posX: place.place_konva.getX(),
-        posY: place.place_konva.getY()
+        posX: place.shape.getX(),
+        posY: place.shape.getY()
     };
-};
 
-function transitionToSaveObj(transition) {
+}
 
-    save_src_obj = placeToSaveObj(transition.src, false);
-    save_dest_obj = placeToSaveObj(transition.dest, false);
+function transitionToSaveObj( transition )
+{
+
+    let saveableSourcePlace = placeToSaveObj( transition.source );
+    let saveableDestinationPlace = placeToSaveObj( transition.destination );
 
     return {
         type: transition.type,
         name: transition.name,
-        src: save_src_obj,
-        dest: save_dest_obj,
+        source: saveableSourcePlace,
+        destination: saveableDestinationPlace,
         func: transition.func,
-        dependency_count: transition.dependency_count,
-        dependency: transition.dependency,
-        dependency_type: transition.dependency_type,
     };
 
-};
+}
 
-function dependencyToSaveObj(dependency, connections=true) {
+function dependencyToSaveObj( dependency )
+{
 
-    var save_src_obj;
-    switch(dependency.source_obj.type) {
-        case "Transition":
-            save_src_obj = transitionToSaveObj(dependency.source_obj);
+    let saveableSource;
+
+    switch( dependency.source.type)
+    {
+        case "transition":
+            saveableSource = transitionToSaveObj( dependency.source );
             break;
-        case "Place":
-            save_src_obj = placeToSaveObj(dependency.source_obj);
+        case "place":
+            saveableSource = placeToSaveObj( dependency.source );
             break;
-    }
-
-    if(connections && typeof dependency.connection_obj !== 'undefined') {
-        save_connection_obj = connectionToSaveObj(dependency.connection_obj);
-    } else {
-        save_connection_obj = 'undefined';
     }
 
     return {
         type: dependency.type,
+        serviceData: dependency.serviceData,
         name: dependency.name,
         index: dependency.index,
-        source_obj: save_src_obj,
-        connection_obj: save_connection_obj,
+        source: saveableSource,
     };
 
-};
+}
 
-function connectionToSaveObj(connection) {
+function connectionToSaveObj( connection )
+{
 
-    save_provide_port_obj = dependencyToSaveObj(connection.provide_port_obj, false);
-    save_use_port_obj = dependencyToSaveObj(connection.use_port_obj, false);
+    saveableProvide = dependencyToSaveObj( connection.provide );
+    saveableUse = dependencyToSaveObj( connection.use );
 
     return {
-        enabled: connection.enabled,
-        provide_port_obj: save_provide_port_obj,
-        use_port_obj: save_use_port_obj,
-        provide_component_name: connection.provide_component_name,
-        use_component_name: connection.use_component_name
+        provide: saveableProvide,
+        use: saveableUse,
+        provideComponentName: connection.provide.component.name,
+        useComponentName: connection.use.component.name
     };
 
-};
+}
+
+module.exports = saveAssembly;
