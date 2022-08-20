@@ -279,10 +279,13 @@ class Component
 
     }
 
-    addDependency( source )
+    addDependency( source, serviceData = null )
     {
 
-        let serviceData = ipcRenderer.sendSync( 'dependency-servicedataprompt' );
+        if( serviceData == null )
+        {
+            var serviceData = ipcRenderer.sendSync( 'dependency-servicedataprompt' );
+        }
 
         let dependency = new Dependency( source, serviceData );
 
@@ -299,7 +302,6 @@ class Component
     {
 
         const MAX_TRANSITIONS = 5;
-
 
         if( this.validTransition( source, destination ) )
         {
