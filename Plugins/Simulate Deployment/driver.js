@@ -1,453 +1,481 @@
-// NOTE: The variables must have unique names, particular to the plugin
-// or else the plugin will not work
+const electron = require('electron');
+const Stopwatch = require('timer-stopwatch');
+const TweenMax = require( 'gsap' );
+const ipcRenderer = electron.ipcRenderer;
 
-const sd_electron = require('electron');
-var Stopwatch = require('timer-stopwatch');
-var TweenMax = require("gsap");
-const sd_ipcRenderer = sd_electron.ipcRenderer;
+const app = electron.remote;
+var dialog = app.dialog;
 
-var sd_app = electron.remote;
-var sd_dialog = app.dialog;
-var sd_comp_list = [];
-var sd_con_list = [];
-var token_list = [];
-var tween_obj_list = [];
-var timer_label_list = [];
-var tween_duration_dict = {};
-var simulator_mode = true;
+var tokens = [ ];
+var tweens = [ ];
+var timerLabels = [ ];
+var tweenDurationDict = { };
+var simMode = true;
 
-class Token{
-    constructor(name, start_position){
+class Token
+{
+    constructor( name, startPosition )
+    {
         this.name = name;
-        this.start_position = start_position;
-        this.konva_circle;
-        this.tween_konva;
+        this.startPosition = startPosition;
+        this.circle;
+        this.tween;
     }
 }
 
-class Tween{
-    constructor(name, tween_list, component, tokenColor, timerLabel){
+class Tween
+{
+    constructor( name, tweens, component, tokenColor, timerLabel )
+    {
         this.name = name;
-        this.tween_list = tween_list;
+        this.tweens = tweens;
         this.component = component;
         this.tokenColor = tokenColor;
         this.timerLabel = timerLabel;
     }
 }
 
-class TimerLabel{
-    constructor(name, label_konva, parent_component){
+class TimerLabel
+{
+    constructor( name, label, parent_component )
+    {
         this.name = name;
-        this.label_konva = label_konva;
+        this.label = label;
         this.isRunning = false;
-        this.parent_component = parent_component;
+        this.parentComponent = parentComponent;
     }
 }
 
-sd_ipcRenderer.on('simulate_deployment', function() {
-    bootstrap();
-});
+function bootstrap( mabGUI )
+{
 
-function bootstrap() {
-    // set references to global lists
-    sd_comp_list = component_list;
-    sd_con_list = connection_list;
+    let components = mabGUI.assembly.components;
+    let connections = mabGUI.assembly.connections;
+
     // check if component exists
-    if(sd_comp_list.length > 0) {
-        console.log("Creating and adding animation layer to stage...");
-        // animation layer
-        var animLayer = new Konva.Layer();
-        stage.add(animLayer);
+    if( components.length > 0 )
+    {
+        // create animation layer
+        var simulationLayer = new Konva.Layer();
+        mabGUI.stage.add( simulationLayer );
     } else {
-        console.log("Assembly has no components... exiting.");
         return;
     }
 
     // Send message to main thread to change to the simulator menu
-    sd_ipcRenderer.send('enter_simulator_mode');
+    ipcRenderer.send( 'simulator-setmenu' );
 
     // create a konva group for tokens
     var simulationGroup = new Konva.Group();
 
     // create simulator button
-    simulatorLabel = createSimulatorLabel();
-    simulationGroup.add(simulatorLabel);
+    let simulatorLabel = createSimulatorLabel();
+    simulationGroup.add( simulatorLabel );
 
-    animLayer.add(simulationGroup);
-    stage.add(animLayer);
+    simulationLayer.add( simulationGroup );
+    mabGUI.stage.add( simulationLayer );
 
-    sd_ipcRenderer.on('exit_simulator_mode', function(e){
-        // for every component
-        for (var i = 0; i < sd_comp_list.length; i++) {
-            setListening(sd_comp_list[i]);
-        }
-        //resetHighlights(animLayer); // tween still plays
-        destroyTokens();
-        destroyTweenObjList();
-        resetConnectionsAndDependencies();
-        resetTransitionCurrentDuration();
-        sd_comp_list = [];
-        sd_con_list = [];
-        token_list = [];
-        tween_obj_list = [];
-        tween_duration_dict = {};
-        simulationGroup.destroy();
-        animLayer.destroy();
-        stopwatch.stop();
-        simulator_mode = false;
-        console.log("clicked on edit mode label");
+    ipcRenderer.on('simulator-exit',
+        function( event )
+        {
+            // for every component
+            for ( let componentIndex = 0; componentIndex < components.length; componentIndex++ )
+            {
+                setListening( components[ componentIndex ], mabGUI );
+            }
+            //resetHighlights(animLayer); // tween still plays
+            destroyTokens( );
+            destroyTweenObjList( );
+            resetConnectionsAndDependencies( connections );
+            mabGUI.layer.draw( );
+            resetTransitionCurrentDuration( components );
+            
+            tokens = [ ];
+            tweens = [ ];
+            tweenDurationDict = {};
+            simulationGroup.destroy();
+            simulationLayer.destroy();
+            stopwatch.stop();
+            simMode = false;
     });
 
     // start global timer
     var stopwatch = new Stopwatch();
     stopwatch.start();
     // for every component
-    for (var i = 0; i < sd_comp_list.length; i++) {
+    for ( let componentIndex = 0; componentIndex < components.length; componentIndex++ )
+    {
         // check if component has places
-        if (sd_comp_list[i].place_list.length > 0){
+        if( components[ componentIndex ].places.length > 0 )
+        {
             // create timer label
-            timerLabel = createTimerLabel(sd_comp_list[i].konva_component);
-            simulationGroup.add(timerLabel);
+            let timerLabel = createTimerLabel( components[ componentIndex ].shape );
+            simulationGroup.add( timerLabel );
             // push timer label obj to global list 
-            timer_label_list.push(timerLabel);
+            timerLabels.push( timerLabel );
             // set not listening 
-            setNotListening(sd_comp_list[i]);
+            setNotListening( components[ componentIndex ], mabGUI );
             // set token color for this component
-            var tokenColor = getRandomColor();
+            var tokenColor = getRandomColor( );
             // create tween obj name
-            var tween_name = "tween " + i;
+            var tweenName = "tween " + componentIndex;
             // create tween list
-            var tween_list = [];
+            var tweensList = [];
             // create tween obj
-            var tween_obj = new Tween(tween_name, tween_list, sd_comp_list[i], tokenColor, timerLabel);
+            var tween = new Tween( tweenName, tweensList, components[ componentIndex ], tokenColor, timerLabel );
             // build the animation
-            buildTokenTween(tween_obj, animLayer);
+            buildTokenTween( tween, simulationLayer, connections );
             // tokenHandler(sd_comp_list[i], place_num, animLayer, tokenColor, timerLabel);
-            tween_obj_list.push(tween_obj);
-        } else {
-            console.log(sd_comp_list[i].name + " did not have a place!");
+            tweens.push( tween );
         }
-    };
+    }
 
     // Fires every 50ms by default. Change setting the 'refreshRateMS' options
-    stopwatch.onTime(function(time) {
-        updateTimerLabels(time);
-    });
+    stopwatch.onTime(
+            function( time)
+            {
+                updateTimerLabels( time );
+            } );
 
     // animLayer.add(tokenGroup);
-    animLayer.draw();
+    simulationLayer.draw( );
 }
 
-function buildTokenTween(tween_obj, animLayer){
+function buildTokenTween( tween, simulationLayer, connections )
+{
     // create tweenMax
-    var tweenline = new TimelineMax({onCompleteParams:[tween_obj], onComplete: finishTween} );
+    var tweenLine = new TimelineMax( { onCompleteParams: [ tween ], onComplete: finishTween } );
     // add tweenMax to tweenlist
-    tween_obj.tween_list.push(tweenline);
+    tween.tweens.push( tweenLine );
     // create reference to this tweens parent component
-    var component_obj = tween_obj.component;
-    component_obj.place_list = sortPlaceList(component_obj);
+    var component = tween.component;
+    component.places = sortPlaceList( component );
 
     // for every place in components place list
-    for (var place_num = 0; place_num < component_obj.place_list.length; place_num++){
+    for ( let placeIndex = 0; placeIndex < component.places.length; placeIndex++ )
+    {
         // set max delay for current place
-        setTransitionMaxDelay(component_obj.place_list[place_num]);
+        setTransitionMaxDelay( component.places[ placeIndex ] );
         // add label to timeline for when this place's outbound transitions should start
-        tweenline.add('place_' + place_num + '_delay', getPlaceDelay(component_obj.place_list[place_num]));
+        tweenLine.add( 'place_' + placeIndex + '_delay', getPlaceDelay( component.places[ placeIndex ] ) );
         // set current place obj reference
-        var curr_place_obj = component_obj.place_list[place_num];
+        let place = component.places[ placeIndex ];
         // for every outbound transition out of the current place
-        for (var tran_num = 0; tran_num < component_obj.place_list[place_num].transition_outbound_list.length; tran_num++){
+        for ( let transitionIndex = 0; transitionIndex < place.transitions.out.length; transitionIndex++ )
+        {
             // set current tran obj reference
-            var curr_tran_obj = component_obj.place_list[place_num].transition_outbound_list[tran_num];
-            // get current duration
-            var getDuration = getRandomDuration(curr_tran_obj.duration_min, curr_tran_obj.duration_max);
-            curr_tran_obj.current_duration = getDuration;
+            let transition = place.transitions.out[ transitionIndex ];
+            // generate duration
+            let duration = getRandomDuration( transition.minDuration, transition.maxDuration );
+            transition.currentDuration = duration;
             // get token starting position
-            var tokenStartPos = component_obj.place_list[place_num].place_konva.getAbsolutePosition();
+            let tokenStartPos = place.shape.getAbsolutePosition( );
             // create token
-            var token = createToken(tokenStartPos, tween_obj.tokenColor);
-            animLayer.add(token);
-            token_list.push(token);
-            // get reference to transtion konva line
-            var transition = component_obj.place_list[place_num].transition_outbound_list[tran_num].tran_konva;
+            let token = createToken( tokenStartPos, tween.tokenColor );
+            simulationLayer.add( token );
+            tokens.push( token );
             // get transition konva line position
-            var tran_pos = transition.getAbsolutePosition();
-            var mid_pos_x = tran_pos.x + transition.points()[2];
-            var mid_post_y = tran_pos.y + transition.points()[3];
-            var dest_post_x = tran_pos.x + transition.points()[4];
-            var dest_post_y = tran_pos.y + transition.points()[5];
+            let transitionPosition = transition.shape.getAbsolutePosition( );
+            let midpoint = { x: transitionPosition.x + transition.shape.points( )[ 2 ], y: transitionPosition.y + transition.shape.points( )[ 3 ] };
+            let destination = { x: transitionPosition.x + transition.shape.points( )[ 4 ], y: transitionPosition.y + transition.shape.points( )[ 5 ] };
             
             // tween to next place
-            var tween = TweenMax.to(token, getDuration, { konva: { bezier: {curviness:3, values:[{x:mid_pos_x, y:mid_post_y}, {x:dest_post_x, y:dest_post_y}] }}, onStartParams:[token, curr_tran_obj], onStart: startTween, onCompleteParams:[token, curr_place_obj], onComplete: endTween });
-            // subTweenLine.add(tween, 0);
-            tweenline.add(tween, 'place_' + place_num + '_delay');
+            let nextTween = TweenMax.to( token, duration,
+                                   { konva: { bezier: { curviness: 3, values: [ { x: midpoint.x, y: midpoint.y },
+                                                                                { x: destination.x, y: destination.y }
+                                                                              ]
+                                                      }
+                                              },
+                                     onStartParams: [ token, transition, connections, mabGUI ],
+                                     onStart: startTween,
+                                     onCompleteParams: [ token, place, connections, mabGUI ],
+                                     onComplete: endTween }
+                                    );
+            // subTweenLine.add( tween, 0 );
+            tweenLine.add( nextTween, 'place_' + placeIndex + '_delay' );
         }
         // tweenline.add(subTweenLine, 'place_' + place_num + '_delay');
     }
 }
 
 // sets the max delay from one place to another place in tween_duration_dict
-function setTransitionMaxDelay(curr_place){
+function setTransitionMaxDelay( place )
+{
 
     // first place in graph
-    if(curr_place.transition_inbound_list.length == 0) {
-        tween_duration_dict[curr_place.name] = 0;
+    if( place.transitions.in.length == 0 )
+    {
+        tweenDurationDict[ place.name ] = 0;
     }
     
-    var max_place_delay = 0;
+    let placeMaxDelay = 0;
     // for every inbound transition into place
-    for (var tran_num = 0; tran_num < curr_place.transition_inbound_list.length; tran_num++){
-        var src_place_delay = getPlaceDelay(curr_place.transition_inbound_list[tran_num].src);
-        var current_place_delay = src_place_delay + curr_place.transition_inbound_list[tran_num].current_duration;
+    for ( let transitionIndex = 0; transitionIndex < place.transitions.in.length; transitionIndex++ )
+    {
+        let transition = place.transitions.in[ transitionIndex ];
+        let sourceMaxDelay = getPlaceDelay( transition.source );
+        let placeDelay = sourceMaxDelay + transition.currentDuration;
         // find the previous place with highest duration
-        if(current_place_delay > max_place_delay){
-            max_place_delay = current_place_delay;
+        if( placeDelay > placeMaxDelay )
+        {
+            placeMaxDelay = placeDelay;
         }
     }
 
     // add the place name to delay dict with max delay to it
-    tween_duration_dict[curr_place.name] = max_place_delay;
+    tweenDurationDict[ place.name ] = placeMaxDelay;
+
 }
 
 // return the delay from one place to another place from tween duration dict
-function getPlaceDelay(place_obj){
-    return tween_duration_dict[place_obj.name];
+function getPlaceDelay( place )
+{
+    return tweenDurationDict[ place.name ];
 }
 
-function isInDurationDict(place_obj){
-    return tween_duration_dict[place_obj.name] != undefined;
-}
-
-function addDelayToDict(place_obj, place_delay){
-    tween_duration_dict[place_obj.name] = place_delay;
-}
-
-function sortPlaceList(component_obj){
-    var roots = findRoots(component_obj.place_list);
-    var new_place_list = [];
-    for(var root = 0; root < roots.length; root++){
-        traversePlaces(roots[root], new_place_list);
+function sortPlaceList( component )
+{
+    let roots = component.getRoots( );
+    let places = [];
+    for( let rootIndex = 0; rootIndex < roots.length; rootIndex++ )
+    {
+        traversePlaces( roots[ rootIndex ], places );
     }
-    return new_place_list;
+    return places;
 }
 
-function traversePlaces(place_obj, new_place_list){
-    if(containsObject(place_obj, new_place_list)){
-        new_place_list.move(new_place_list.indexOf(place_obj), new_place_list.length)
+function traversePlaces( place, places )
+{
+    if( containsObject(place, places) )
+    {
+        places.move( places.indexOf( place ), places.length );
     } else {
-        new_place_list.push(place_obj);
+        places.push( place );
     }
-    traverseTransitions(place_obj);
-    function traverseTransitions(place_obj){
-        for(var tran_num = 0; tran_num < place_obj.transition_outbound_list.length; tran_num++){
-            traversePlaces(place_obj.transition_outbound_list[tran_num].dest, new_place_list);
+    traverseTransitions( place );
+    function traverseTransitions( place )
+    {
+        for( let transitionIndex = 0; transitionIndex < place.transitions.out.length; transitionIndex++ )
+        {
+            traversePlaces( place.transitions.out[ transitionIndex ].destination, places );
         }
     }
 }
 
-function containsObject(obj, list) {
-    var x;
-    for (x in list) {
-        if (list.hasOwnProperty(x) && list[x] === obj) {
+function containsObject( obj, list )
+{
+    let x;
+    for ( x in list )
+    {
+        if( list.hasOwnProperty( x ) && list[ x ] === obj )
+        {
             return true;
         }
     }
     return false;
 }
 
-// returns places with empty inbound_transition lists
-function findRoots(place_list) {
-
-    var roots = [];
-
-    for(var place_index = 0; place_index < place_list.length; place_index++) {
-        if(place_list[place_index].transition_inbound_list.length == 0) {
-            roots.push(place_list[place_index]);
-        }
-    }
-
-    return roots;
-
+Array.prototype.move = function ( from, to )
+{
+    this.splice( to, 0, this.splice( from, 1 )[ 0 ] );
 };
 
-Array.prototype.move = function (from, to) {
-    this.splice(to, 0, this.splice(from, 1)[0]);
-};
-
-function startTween(token, transition_obj){
-    showToken(token);
+function startTween( token, transition, connections, mabGUI )
+{
+    showToken( token );
     // check if transition obj has dependency
-    enableDependencyObj(transition_obj);
-    transitionAnim(transition_obj);
-    checkConnectionStatus();
+    enableDependencyObj( transition );
+    transitionAnim( transition );
+    checkConnectionStatus( connections );
+    mabGUI.layer.draw( );
 }
 
-function enableDependencyObj(source_obj){
+function enableDependencyObj( source )
+{
     // set every dependency obj connected to this source obj to true
-    for(var dependency = 0; dependency < source_obj.dependency_obj_list.length; dependency++){
-        source_obj.dependency_obj_list[dependency].enabled = true;
+    for( let dependencyIndex = 0; dependencyIndex < source.dependencies.length; dependencyIndex++ )
+    {
+        source.dependencies[ dependencyIndex ].enabled = true;
     }
 };
 
-function endTween(token, place_obj){
-    hideToken(token);
-    enableDependencyObj(place_obj);
+function endTween( token, place, connections, mabGUI )
+{
+    hideToken( token );
+    enableDependencyObj( place );
     // play place tween
     //placeFinishedAnim(place_obj.place_konva);
-    checkConnectionStatus();
+    checkConnectionStatus( connections );
+    mabGUI.layer.draw( );
 }
 
-function showToken(token){
-    token.show();
+function showToken( token )
+{
+    token.show( );
 }
 
-function hideToken(token){
-    token.hide();
+function hideToken( token )
+{
+    token.hide( );
 }
 
-function createToken(tokenPos, tokenColor){
-    var token = new Konva.Circle({
+function createToken( tokenPos, tokenColor )
+{
+    let token = new Konva.Circle( {
         x: tokenPos.x,
         y: tokenPos.y,
         radius: 8,
         fill: tokenColor,
         opacity: 1
-    });
-    token.hide();
+    } );
+    token.hide( );
     return token;
 }
 
-function updateTimerLabels(time){
-    var elapsedMilliseconds = time.ms;
-    var totalSeconds = elapsedMilliseconds / 1000;
-    var totalMinutes = totalSeconds / 60;
-    var elapsedMinutes = Math.trunc(totalMinutes);
-    var elapsedSeconds = totalSeconds;
-    if(totalSeconds >= 60) {elapsedSeconds -= (60 * elapsedMinutes); }
+function updateTimerLabels( time )
+{
+    let elapsedMilliseconds = time.ms;
+    let totalSeconds = elapsedMilliseconds / 1000;
+    let totalMinutes = totalSeconds / 60;
+    let elapsedMinutes = Math.trunc( totalMinutes );
+    let elapsedSeconds = totalSeconds;
+    if( totalSeconds >= 60 ) { elapsedSeconds -= ( 60 * elapsedMinutes ); }
     
-    for (var i = 0; i < timer_label_list.length; i++){
-        timer_label_list[i].text(Math.trunc(elapsedMinutes) + ":" + Math.trunc(elapsedSeconds));
+    for ( let timerLabelIndex = 0; timerLabelIndex < timerLabels.length; timerLabelIndex++ )
+    {
+        timerLabels[ timerLabelIndex ].text( Math.trunc( elapsedMinutes ) + ":" + Math.trunc( elapsedSeconds ) );
     }
 }
 
 // reset every curr duration of every tran obj to 0
-function resetTransitionCurrentDuration(){
-    for (var i = 0; i < sd_comp_list.length; i++) {
-        for (var j = 0; j < sd_comp_list[i].transition_list.length; j++) {
-            sd_comp_list[i].transition_list[j].current_duration = 0;
+function resetTransitionCurrentDuration( components )
+{
+    for ( let componentIndex = 0; componentIndex < components.length; componentIndex++ )
+    {
+        let component = components[ componentIndex ];
+        for ( let transitionIndex = 0; transitionIndex < component.transitions.length; transitionIndex++ )
+        {
+            let transition = component.transitions[ transitionIndex ];
+            transition.currentDuration = 0;
         }
     }
 }
 
-function finishTween(tween_obj){
-    stopTimerLabel(tween_obj.timerLabel);
-    componentFinishedAnim(tween_obj.component);
+function finishTween( tween )
+{
+    stopTimerLabel( tween.timerLabel );
+    componentFinishedAnim( tween.component );
 }
 
 // remove the timerLabel from the list
-function stopTimerLabel(timerLabel){
-    timer_label_list.splice( timer_label_list.indexOf(timerLabel), 1 );
+function stopTimerLabel( timerLabel )
+{
+    timerLabels.splice( timerLabels.indexOf( timerLabel ), 1 );
 }
 
-function checkConnectionStatus(){
-    for (var i = 0; i < sd_con_list.length; i++){
-        if(sd_con_list[i].provide_port_obj.enabled == true && sd_con_list[i].use_port_obj.enabled == true){
-            sd_con_list[i].enabled = true;
-            connectionEnabledAnim(sd_con_list[i]);
+function checkConnectionStatus( connections )
+{
+    for( let connectionIndex = 0; connectionIndex < connections.length; connectionIndex++ )
+    {
+        let connection = connections[ connectionIndex ];
+        if( connection.provide.enabled && connection.use.enabled )
+        {
+            connection.enabled = true;
+            connectionEnabledAnim( connection );
         }
     }
-    layer.draw();
 }
 
-function connectionEnabledAnim(connection){
-    console.log("Connection enabled");
-    connection.gate1_konva.opacity(0);
-    connection.gate2_konva.opacity(0);
-    var connection_tween = new Konva.Tween({
-        node: connection.connection_line_konva,
+function connectionEnabledAnim( connection )
+{
+
+    connection.gate1.opacity( 0 );
+    connection.gate2.opacity( 0 );
+
+    let connectionTween = new Konva.Tween( {
+        node: connection.shape,
         duration: 2,
         stroke: 'green',
         easing: Konva.Easings.EaseInOut,
-        onFinish: function() {
-            setTimeout(function(){ connection_tween.reverse(); }, 2000);
-        }
+        onFinish:
+            function()
+            {
+                setTimeout( function( ) { connectionTween.reverse(); }, 2000 );
+            }
     });
-    connection_tween.play();
+
+    connectionTween.play();
+
 }
 
-function transitionAnim(transition_obj){
-    console.log("created transition tween");
-    var transition_tween = new Konva.Tween({
-        node: transition_obj.tran_konva,
-        duration: transition_obj.current_duration / 2,
+function transitionAnim( transition )
+{
+
+    let transitionTween = new Konva.Tween( {
+        node: transition.shape,
+        duration: transition.currentDuration / 2,
         stroke: 'blue',
         strokeWidth: 1,
         shadowColor: 'black',
         shadowBlur: 2,
         shadowOpacity: 1,
         easing: Konva.Easings.BackEaseOut,
-        onFinish: function() {
-            setTimeout(function(){ transition_tween.reverse(); }, 1000);
-        }
-    });
-    transition_tween.play();
+        onFinish:
+            function( )
+            {
+                setTimeout( function( ) { transitionTween.reverse( ); }, 1000 );
+            }
+    } );
+
+    transitionTween.play( );
+
 }
 
-function placeFinishedAnim(place){
-    console.log("created place tween");
-    var place_tween = new Konva.Tween({
-        node: place,
-        duration: 2,
-        stroke: 'green',
-        strokeWidth: 1,
-        shadowColor: 'black',
-        shadowBlur: 5,
-        shadowOpacity: 1,
-        easing: Konva.Easings.BackEaseOut,
-        onFinish: function() {
-            setTimeout(function(){ place_tween.reverse(); }, 4000);
-        }
-    });
-    place_tween.play();
-}
+function componentFinishedAnim( component )
+{
 
-function componentFinishedAnim(component){
-    console.log("created component tween");
-    var component_tween = new Konva.Tween({
-        node: component.konva_component,
+    let componentTween = new Konva.Tween( {
+        node: component.shape,
         duration: 4,
         stroke: 'green',
         easing: Konva.Easings.EaseInOut,
-        onFinish: function() {
-            setTimeout(function(){ component_tween.reverse(); }, 4000);
-        }
-    });
-    component_tween.play();
+        onFinish:
+            function()
+            {
+                setTimeout( function( ) { componentTween.reverse( ); }, 4000 );
+            }
+    } );
+
+    componentTween.play( );
+
 }
 
 // returns a random time between a lower and upper bound
-function getRandomDuration(min, max) {
-    min = Math.ceil(min);
-    max = Math.floor(max);
-    return Math.floor(Math.random() * (max - min + 1)) + min; //The maximum is inclusive and the minimum is inclusive 
+function getRandomDuration( min, max )
+{
+    min = Math.ceil( min );
+    max = Math.floor( max );
+    return Math.floor( Math.random( ) * ( max - min + 1 ) ) + min;
 }
 
-function getRandomColor() {
-    var letters = '0123456789ABCDEF';
-    var color = '#';
-    for (var i = 0; i < 6; i++) {
-      color += letters[Math.floor(Math.random() * 16)];
+function getRandomColor( )
+{
+    let letters = '0123456789ABCDEF';
+    let color = '#';
+    for ( let index = 0; index < 6; index++ )
+    {
+      color += letters[ Math.floor( Math.random( ) * 16 ) ];
     }
     return color;
 }
 
-function createTimerLabel(component_konva){
+function createTimerLabel( componentShape ){
 
-    var comp_absolute_pos = component_konva.getAbsolutePosition();
+    let componentPosition = componentShape.getAbsolutePosition( );
 
-    var timerLabel = new Konva.Text({
-        x: comp_absolute_pos.x + ((component_konva.getWidth() / 2) * component_konva.scaleX()) - 30,
-        y: comp_absolute_pos.y + (component_konva.getHeight() * component_konva.scaleY()),
+    let timerLabel = new Konva.Text( {
+        x: componentPosition.x + ( ( componentShape.getWidth( ) / 2 ) * componentShape.scaleX( ) ) - 30,
+        y: componentPosition.y + ( componentShape.getHeight( ) * componentShape.scaleY( ) ),
         opacity: 1,
         text: '',
         fontFamily: 'Calibri',
@@ -455,86 +483,80 @@ function createTimerLabel(component_konva){
         padding: 5,
         align: 'center',
         fill: 'black'
-    });
+    } );
 
     return timerLabel;
+
 }
 
-function createSimulatorLabel(){
-    // simulator label
-    var simulatorLabel = new Konva.Label({
+function createSimulatorLabel( )
+{
+    let simulatorLabel = new Konva.Label( {
         x: 150,
         y: 10,
         opacity: 1
-    });
+    } );
 
-    simulatorLabel.add(new Konva.Tag({
+    simulatorLabel.add( new Konva.Tag( {
         fill: 'white'
-    }));
+    } ) );
 
-    simulatorLabel.add(new Konva.Text({
-        text: 'SIMULATOR MODE',
+    simulatorLabel.add( new Konva.Text( {
+        text: 'Simulator Mode',
         fontFamily: 'Calibri',
         fontSize: 36,
         padding: 5,
         fill: 'black'
-    }));
+    } ) );
     return simulatorLabel;
 }
 
-function resetHighlights(animLayer){
-    for (var i = 0; i < sd_comp_list.length; i++) {
-        sd_comp_list[i].konva_component.stroke('black');
-        for (var j = 0; j < sd_comp_list[i].place_list.length; j++){
-            // show that the new place has been reached
-            sd_comp_list[i].place_list[j].place_konva.stroke('black');
-            //sd_comp_list[i].place_list[j].place_konva.strokeWidth(1);
+function resetConnectionsAndDependencies( connections )
+{
+    for( let connectionIndex = 0; connectionIndex < connections.length; connectionIndex++ )
+    {
+        let connection = connections[ connectionIndex ];
+        if( connection.enabled )
+        {
+            connection.gate1.opacity( 1 );
+            connection.gate2.opacity( 1 );
+            connection.enabled = false;
+            connection.shape.stroke( 'black' );
+            connection.provide.enabled = false;
+            connection.use.enabled = false;
         }
     }
-    animLayer.draw();
 }
 
-function resetConnectionsAndDependencies(){
-    for (var i = 0; i < sd_con_list.length; i++){
-        if(sd_con_list[i].enabled == true){
-            sd_con_list[i].gate1_konva.opacity(1);
-            sd_con_list[i].gate2_konva.opacity(1);
-            sd_con_list[i].enabled = false;
-            sd_con_list[i].connection_line_konva.stroke('black');
-            resetDependencyEnabled(sd_con_list[i].provide_port_obj, sd_con_list[i].use_port_obj);
-        }
-    }
-    layer.draw();
-}
-
-function resetDependencyEnabled(provide_dep_obj, use_dep_obj){
-    provide_dep_obj.enabled = false;
-    use_dep_obj.enabled = false;
-}
-
-function destroyTokens(){
-    for (var i = 0; i < token_list.length; i++) {
-        token_list[i].destroy();
-        token_list.splice( token_list.indexOf(token_list[i]), 1 );
-        i--;
+function destroyTokens( )
+{
+    while( tokens.length != 0 )
+    {
+        tokens[ 0 ].destroy( );
     }
 }
 
-function destroyTweenObjList(){
+function destroyTweenObjList( )
+{
     // destory every tween
-    for (var i = 0; i < tween_obj_list.length; i++) {
-        tween_obj_list[i].tween_list = [];
-        tween_obj_list.splice( tween_obj_list.indexOf(tween_obj_list[i]), 1 );
-        i--;
+    for (var tweenIndex = 0; tweenIndex < tweens.length; tweenIndex++ )
+    {
+        tweens[ tweenIndex ].tweens = [];
+        tweens.splice( tweens.indexOf( tweens[ tweenIndex ] ), 1 );
+        tweenIndex;
     }
 }
 
-function setNotListening(component){
-    component.component_group_konva.listening(false);
-    layer.drawHit();
+function setNotListening( component, mabGUI )
+{
+    component.group.listening( false );
+    mabGUI.layer.drawHit();
 }
 
-function setListening(component){
-    component.component_group_konva.listening(true);
-    layer.drawHit();
+function setListening( component, mabGUI )
+{
+    component.group.listening( true );
+    mabGUI.layer.drawHit();
 }
+
+module.exports = bootstrap;
