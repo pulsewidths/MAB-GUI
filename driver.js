@@ -1,3 +1,5 @@
+// driver.js is ran in the main process (as opposed to the other .js files, in renderer/window context)
+
 const electron = require( 'electron' );
 const { app, BrowserWindow, Menu, ipcMain } = electron;
 const Konva = require( 'Konva' );
@@ -5,9 +7,7 @@ const Konva = require( 'Konva' );
 const url = require( 'url' );
 const path = require( 'path' );
 
-const pluginManager = require( './JS/pluginManager.js' ); // @todo: change filename
-
-// driver.js is ran in the main process (as opposed to the renderer)
+const pluginManager = require( './JS/pluginManager.js' );
 
 // on loading background stuff, run 'boot' function.
 app.on( 'ready', boot );
@@ -146,39 +146,38 @@ function initDeveloperMenu( )
     Menu.setApplicationMenu( mainMenu );
 
 }
-    
+
 // add all valid plugins to the 'plugins' menu dropdown.
 function initPlugins( )
 {
 
-    // locate the 'plugins' dropdown in the main menu.
-    var pluginsMenuIndex = 0;
+    // locate the plugins dropdown
+    let pluginsMenuIndex = 0;
     while( pluginsMenuIndex < mainMenu.items.length )
     {
-
         if( mainMenu.items[ pluginsMenuIndex ].label == 'Plugins' )
         {
             break;
         }
-
-            pluginsMenuIndex++;
-
+        pluginsMenuIndex++;
     }
 
     for( let pluginIndex = 0; pluginIndex < pluginManager.length; pluginIndex++ )
     {
 
-        let plugin = pluginManager[ pluginIndex ];
+        let pluginObject = pluginManager[ pluginIndex ];
 
         const pluginEntry = new electron.MenuItem (
-            { label: plugin.name,
-              accelerator: 'CmdOrCtrl' + ( pluginIndex + 1 ),
-              driverPath: plugin.path,
-              pluginNumber: pluginIndex,
-              message: plugin.name.toLocaleLowerCase( ).replace( / /g, '_' ),
+            { label: pluginObject.name,
+            accelerator: 'CmdOrCtrl' + ( pluginIndex + 1 ),
+            driverPath: pluginObject.path,
+            pluginNumber: pluginIndex,
+            message: pluginObject.name.toLocaleLowerCase( ).replace( / /g, '_' ),
                 click( MenuItem )
                 {
-                    window.webContents.send( MenuItem.message );
+                    // let pluginStart = require ( './Plugins/' + pluginObject.name + '/driver.js' );
+                    // pluginStart( mabGUI );
+                    window.webContents.send( 'plugin-start', pluginObject );
                 }
             }
         )

@@ -1,6 +1,5 @@
 const Konva = require( 'Konva' );
 const { ipcRenderer } = require( 'electron' );
-const dialog = require( 'electron' );
 
 // mabGUI runs from the renderer process, called by index.html 
 class MabGUI
@@ -10,6 +9,8 @@ class MabGUI
 
         this.stage = null;
         this.layer = null;
+
+        this.plugins = [ ]; // [ { name: 'name', func: 'func' }, ... ]
 
         this.assembly = new Assembly( this );
 
@@ -36,8 +37,6 @@ class MabGUI
             let transition = this.assembly.components[ componentIndex ].addTransition( place1, place2 );
         }
 
-
-        
     }
 
     initStage( )
@@ -59,7 +58,35 @@ class MabGUI
     initListeners( )
     {
 
+        let mabGUI = this;
         let assembly = this.assembly;
+        let plugins = this.plugins;
+
+        ipcRenderer.on( 'plugin-start',
+            function( event, pluginObject )
+            {
+                let pluginInList = false;
+                let pluginIndex = 0;
+                while( pluginIndex < plugins.length )
+                {
+                    let plugin = plugins[ pluginIndex ];
+                    if( plugin.name == pluginObject.name )
+                    {
+                        pluginInList = true;
+                        break;
+                    }
+                    pluginIndex++;
+                }
+                if( !pluginInList )
+                {
+                    var pluginStart = require( '../Plugins/' + pluginObject.name + '/driver.js' );
+                    plugins.push( { name: pluginObject.name, func: pluginStart } );
+                } else {
+                    var pluginStart = plugins[ pluginIndex ].func;
+                }
+
+                pluginStart( mabGUI );
+            } );
         
         // received from driver.js (main process), which received it from updateComponent.html
         ipcRenderer.on( 'changeComponentDetails-renderer',
@@ -95,11 +122,8 @@ class MabGUI
 
     static snapCoords( pos )
     {
-
         let snapIncrement = 10;
-
         return Math.round( pos / snapIncrement ) * snapIncrement;
-
     }
 
     deselectAll( )
@@ -125,7 +149,6 @@ class MabGUI
         {
             return;
         }
-
         this.selectedPlace.shape.stroke( 'black' );
         this.selectedPlace.shape.strokeWidth( 1 );
         this.selectedPlace = null;
@@ -215,6 +238,7 @@ class Assembly
     {
 
         this.components = [ ];
+        this.connections = [ ];
 
     }
 
