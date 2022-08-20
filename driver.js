@@ -90,7 +90,7 @@ function initMenu( )
                     click( )
                     {
                         // send 'exit' signal to renderer.
-                        window.webContents.send( 'exitSimulator' ); // @todo: change exit_simulator to exitSimulator elsewhere.
+                        window.webContents.send( 'simulator-exit' ); // @todo: change exit_simulator to exitSimulator elsewhere.
                         // reset menu.
                         Menu.setApplicationMenu( mainMenu );
                     }
@@ -333,10 +333,10 @@ function initListeners( )
             event.returnValue = response;
         } );
 
-    ipcMain.on( 'openSimulatorWindow',
+    ipcMain.on( 'simulator-setmenu',
         function( )
         {
-            Menu.setApplicationMenu( this.simulatorMenu )
+            Menu.setApplicationMenu( simulatorMenu )
         } );
 
     ipcMain.on( 'openUserManualWindow',
