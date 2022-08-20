@@ -32,9 +32,9 @@ function componentToString( component )
     {
         let place = component.places[ placeIndex ];
         if( placeIndex == component.places.length - 1 ) {
-            content += '\t\t\t' + place.name + '\n';
+            content += '\t\t\t\'' + place.name + '\'\n';
         } else {
-            content += '\t\t\t' + place.name + ',\n';
+            content += '\t\t\t\'' + place.name + '\',\n';
         }
     }
     content += '\t\t]\n\n';
@@ -45,9 +45,9 @@ function componentToString( component )
         let transition = component.transitions[ transitionIndex ];
         if( transitionIndex == component.transitions.length - 1 )
         {
-            content += '\t\t\t' + transition.name + ': (' + transition.source.name + ', ' + transition.destination.name + ', self.' + transition.func + ')\n';
+            content += '\t\t\t\;' + transition.name + '\': (\'' + transition.source.name + '\', \'' + transition.destination.name + '\', self.' + transition.func + ')\n';
         } else {
-            content += '\t\t\t' + transition.name + ': (' + transition.source.name + ', ' + transition.destination.name + ', self.' + transition.func + '),\n';
+            content += '\t\t\t\'' + transition.name + '\': (\'' + transition.source.name + '\', \'' + transition.destination.name + '\', self.' + transition.func + '),\n';
         }
     }
     content += '\t\t}\n\n';
@@ -62,7 +62,7 @@ function componentToString( component )
             if( dependency.source.type == 'place' &&
                 !content.includes( dependency.name ) ) // provide
             {
-                content += '\t\t\t' + dependency.name + ': (DepType.' + capitalize( dependency.serviceData ) + ', [' + dependency.source.name + '] ),\n';
+                content += '\t\t\t\'' + dependency.name + '\': (DepType.' + capitalize( dependency.serviceData ) + ', [\'' + dependency.source.name + '\'] ),\n';
             }
         }
         for( let dependencyIndex = 0; dependencyIndex < component.dependencies.length; dependencyIndex++ )
@@ -71,7 +71,7 @@ function componentToString( component )
             if( dependency.source.type == 'transition' &&
                 !content.includes( dependency.name ) ) // provide
             {
-                content += '\t\t\t' + dependency.name + ': (DepType.' + capitalize( dependency.serviceData ) + ', [' + dependency.source.name + '] ),\n';
+                content += '\t\t\t\'' + dependency.name + '\': (DepType.' + capitalize( dependency.serviceData ) + ', [\'' + dependency.source.name + '\'] ),\n';
             }
         }
         content = content.slice( 0, -2 );
@@ -131,13 +131,13 @@ function assemblyToString( assembly )
     for( componentIndex = 0; componentIndex < components.length; componentIndex++ )
     {
         let component = components[ componentIndex ];
-        content += '\tassembly.addComponent(' + component.name.toLowerCase( ) + ', ' + component.name.toLowerCase( ) + ')\n';
+        content += '\tassembly.addComponent(\'' + component.name.toLowerCase( ) + '\', ' + component.name.toLowerCase( ) + ')\n';
     }
 
     for( let connectionIndex = 0; connectionIndex < assembly.connections.length; connectionIndex++ )
     {
         let connection = assembly.connections[ connectionIndex ];
-        content += '\tassembly.addConnection(' + connection.provide.component.name.toLowerCase( ) + ', ' + connection.provide.name + ', ' + connection.use.component.name.toLowerCase( ) + ', ' + connection.use.name + ')\n';
+        content += '\tassembly.addConnection(' + connection.provide.component.name.toLowerCase( ) + ', \'' + connection.provide.name + '\', ' + connection.use.component.name.toLowerCase( ) + ', \'' + connection.use.name + '\')\n';
     }
     content += '\n';
 
