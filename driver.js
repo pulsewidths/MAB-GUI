@@ -339,10 +339,11 @@ function initListeners( )
             Menu.setApplicationMenu( simulatorMenu )
         } );
 
-    ipcMain.on( 'openUserManualWindow',
+    ipcMain.on( 'usermanual-open',
         function( )
         {
-            var userManualWindow = new BrowserWindow( );
+            console.log( 'asdf' );
+            let userManualWindow = new BrowserWindow( );
             userManualWindow.setMenuBarVisibility( false );
             userManualWindow.loadURL( url.format( {
                 pathname: path.join( __dirname, './Plugins/User Manual/userManual.html' ),
