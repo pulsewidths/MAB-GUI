@@ -1,3 +1,6 @@
+const electron = require( 'electron' );
+const app = electron.remote;
+const dialog = app.dialog;
 const fs = require( 'fs' );
 
 function generate( mabGUI )
@@ -92,20 +95,29 @@ function componentToString( component )
 
 }
 
-//Write the content string to a file
 function exportComponentFile( content, componentName )
 {
+    dialog.showSaveDialog(
 
-    fs.writeFile( componentName.toLowerCase( ) + '.py', content,
-        function( error )
-        {
-            if( error )
+        { defaultPath: "~/" + componentName.toLowerCase( ) + '.py' },
+            function ( fileName )
             {
-                alert( 'An error occured: ' + error );
+                if ( fileName == undefined )
+                {
+                    return;
+                }
+                fs.writeFile( fileName, content,
+                    function( error )
+                    {
+                        if ( error )
+                        {
+                            alert( 'An error ocurred creating the file ' + error.message );
+                        }
+                    } );
             }
-        }  );
+    );
 
-};
+}
 
 function assemblyToString( assembly )
 {
@@ -152,14 +164,24 @@ function assemblyToString( assembly )
 function exportAssemblyFile( content )
 {
 
-    fs.writeFile( 'assembly.py', content,
-        function( error )
+    dialog.showSaveDialog(
+        { defaultPath: '~/assembly.py' },
+        function( fileName )
         {
-            if( error )
+            if( fileName == undefined )
             {
-                alert( 'An error occured: ' + error );
+                return;
             }
-        } );
+            fs.writeFile( fileName, content,
+                function( error )
+                {
+                    if( error )
+                    {
+                        alert( 'An error ocurred creating the file ' + error.message );
+                    }
+                } );
+        }
+    );
 
 }
 
